@@ -1,6 +1,10 @@
 #!/usr/bin/python
 '''
 Gather system information regarding spectre and meltdown. 
+
+Presumptions:
+  Kernel 4.14 is safe: http://www.kroah.com/log/blog/2018/01/06/meltdown-status/
+  Xen 4.8 and 4.10 are safe, 4.6 and 4.7 are not: https://blog.xenproject.org/2018/01/04/xen-project-spectremeltdown-faq/
 '''
 
 import os
@@ -9,75 +13,85 @@ import subprocess
 import pprint
 import logging
 import re
-
-# A huge map of systems with their required versions to be safe for meltdown/spectre
+import platform
 
 log = None
 
+#
+# Kernel Version that are known to be safe
+#
+KERNEL_VERSIONS = {
+    'Debian': [],
+    'Redht': [],
+    'CentOS': [],
+    'Custom': []
+}
+
+#
+# A big map of systems with their required versions to be safe for meltdown/spectre
+#
 SYS_MAP = {
     # ALL DELL R2xx Models
     'PowerEdge R210': {
-        'kernel_version': '4.14.*$',
+        'bios_version': None,
     },
     'PowerEdge R210 II': {
-        'kernel_version': '4.14.*$',
+        'bios_version': None,
     },
 
     'PowerEdge R220': {
         'bios_version': '1.10.1',
-        'kernel_version': '4.14.*$',
     },
 
     # ALL DELL R4xx Models
     'PowerEdge R410': {
-        'kernel_version': '4.14.*$',
+        'bios_version': None,
     },
 
     'PowerEdge R420': {
-        'kernel_version': '4.14.*$',
+        'bios_version': None,
     },
 
     # ALL DELL R5xx Models
     'PowerEdge R510': {
-        'bios_version': '2.4.2',
+        'bios_version': None,
     },
     'PowerEdge R515': {
-        'bios_version': '2.4.2',
+        'bios_version': None,
     },
 
     # ALL DELL R6xx Models
     'PowerEdge R610': {
-        'kernel_version': '4.14.*$',
+        'bios_version': None,
     },
 
     # ALL DELL R7xx Models
     'PowerEdge R710': {
-        'kernel_version': '4.14.*$',
+        'bios_version': None,
     },
     'PowerEdge R720': {
-        'kernel_version': '4.14.*$',
+        'bios_version': None,
     },
     'PowerEdge R720xd': {
-        'kernel_version': '4.14.*$',
+        'bios_version': None,
     },
     'PowerEdge R730xd': {
-        'kernel_version': '4.14.*$',
+        'bios_version': None,
     },
 
     # ALL DELL R8xx Models
     'PowerEdge R815': {
-        'kernel_version': '4.14.*$',
+        'bios_version': None,
     },
 
     # ALL HP DL1xx
     'ProLiant DL160 Gen9': {
-        'kernel_version': '4.14.*$',
+        'bios_version': None,
     },
 
     # ALL HP :DL3xx
     'ProLiant DL380 Gen9': {
         'bios_version': '2.54_12-07-2017(A)(5 Jan 2018)',
-        'kernel_version': '4.14.*$',
     },
 }
 
@@ -86,7 +100,7 @@ class MyLogger(object):
     '''
     Simple logging class
     '''
-    def __init__(self, level=logging.INFO):
+    def __init__(self, level=logging.DEBUG):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(level)
         ch_format = logging.Formatter('%(levelname)s - %(message)s')
@@ -108,34 +122,35 @@ class MyLogger(object):
 # HELPER FUNCTIONS FOR ANALYZING A SINGLE SYSTEM
 #
 
-def _analyze(work_data):
-    check_data = SYS_MAP[work_data['system_product_name']]
+def _check_bios_version(wversion, cversion):
+    log_str = 'Checking bios version:'
 
-    for entry, value in work_data.iteritems():
-        log.debug('Checking {0} version...'.format(entry))
-        if entry not in check_data:
-            log.debug('Skipping non existent check_data-key {0}'.format(entry))
-            continue
+    if wversion == cversion:
+        log_str += '{0} == {1}, OK!'.format(wversion, cversion)
+        log.info(log_str)
+    else:
+        log_str += '{0} != {1}, FAILED!'.format(wversion, cversion)
+        log.info(log_str)
+   
 
-        if value == check_data[entry]:
-            log.info('{0} match, required value {1} matches {2}'.format(
-                entry,
-                value,
-                check_data[entry]
-            ))
-        else:
-            log.info('{0} mismatch, current value {1} does not match required value {2}'.format(
-                entry,
-                value,
-                check_data[entry]
-            ))
-            return False
-    return True
+def _analyze(wdata):
+    '''
+    Check the gathered versions against required versions
+    '''
+    #  create shortcut to platform data
+    cdata = SYS_MAP[wdata['system_product_name']]
+    kernel_version = KERNEL_VERSIONS[wdata['os_release']]
+
+    _check_bios_version(wdata['bios_version'], cdata['bios_version'])
+
 #
 # HELPER FUNCTIONS TO PARSE/EDIT DATA THAT CANT BE USED AS IS
 # FROM STDOUT/STDERR LIKE 'dmidecode -s processer-version'
 # WHICH RETURNS MORE THAN ONE LINE/VALUE
 #
+def _get_os_release():
+    return platform.dist()[0].title()
+
 def _get_processor_info():
     '''
     Gather processor model and version, only use first line since
@@ -143,7 +158,7 @@ def _get_processor_info():
     board.
     '''
     log.info('Gathering processor information')
-    retcode, stdout, stderr = _run_cmd(['/usr/sbin/dmidecode', '-s' 'processor-version'])
+    retcode, stdout, stderr = _run_cmd(['/usr/sbin/dmidecode', '-s', 'processor-version'])
     if retcode == 0:
         return stdout.split('\n')[0]
     else:
@@ -159,7 +174,7 @@ def _get_microcode_info():
     proc = _get_processor_info()
 
     if re.match('^.*xeon.*$', proc, re.I):
-        log.debug('Getting microcode with intels iucode-tool...')
+        log.debug('Getting microcode version with intels iucode-tool...')
         retcode, stdout, stderr = _run_cmd(['/usr/sbin/iucode-tool', '-S'])
        
         # The iucode-tool returns its data on stderr
@@ -195,10 +210,13 @@ def _get_bios_info():
     log.info('Gathering bios version information')
     sysprod = _get_system_product()
 
+    # Dell has its version available in dmidecode
     if re.match('^poweredge.*$', sysprod, re.I):
         retcode, stdout, stderr = _run_cmd(['/usr/sbin/dmidecode', '-s', 'bios-version'])
+
+    # HP only has crap in dmidecode data, but ipmitool seems wto work
     elif re.match('^proliant.*$', sysprod, re.I):
-        retcode, stdout, stderr = _run_cmd(['ipmitool', 'mc', 'info'])
+        retcode, stdout, stderr = _run_cmd(['/usr/bin/ipmitool', 'mc', 'info'])
 
         for line in stdout.split('\n'):
             if re.match('^Firmware Revision\s+:.*$', line):
@@ -220,8 +238,8 @@ def _get_xen_info():
     elif os.path.isfile('/usr/sbin/xm'):
         XEN_BIN = '/usr/sbin/xm'
     else:
-        raise IOError('No xl/xm binary found')
-
+        log.info('No xm/xl binary found, skipping xen checks!')
+        return False, False, False
 
     retcode, stdout, stderr = _run_cmd([XEN_BIN, 'info'])
 
@@ -248,7 +266,7 @@ def _run_cmd(cmd):
             cwd='.'
         )
 
-        log.debug('Executing command \'{0}\''.format(cmd))
+#        log.debug('Executing command \'{0}\''.format(cmd))
         process = subprocess.Popen(cmd, **kwargs)
 
         stdout, stderr = process.communicate()
@@ -284,6 +302,10 @@ def main():
             if isinstance(cmd, list):
                 retcode, stdout, stderr = _run_cmd(cmd) 
 
+                # a function that returns False, False, False is skipped
+                if not retcode and not stdout and not stderr:
+                    continue
+
                 if retcode == 0:
                     ret.update({name: stdout})
                 else:
@@ -295,18 +317,21 @@ def main():
         except (IOError, OSError) as xerr:
             ret.update({name: str(xerr)})
 
-    return ret
+    log.info('Gathered data: {0}'.format(ret))
+    return _analyze(ret)
 
 if __name__ == '__main__':
 
     log = MyLogger()
     _preflight()
+
     # THE COMMANDS WE WANT TO RUN TO GATHER THE REQUIRED DATA.
     # WE EITHER CALL COMMANDS DIRECTLY OR CALL A FUNCTIION THAT
     # PARSES THE DATA BEFORE RETURNING IT.
     CMD = {
         'hostname': ['/bin/hostname'],
         'bios_version': _get_bios_info,
+        'os_release': _get_os_release,
         'cpu_type': _get_processor_info,
         'microcode_version': _get_microcode_info,
         'xen_version': _get_xen_info,
