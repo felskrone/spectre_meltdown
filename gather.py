@@ -176,8 +176,8 @@ class MyLogger(object):
 # HELPER FUNCTIONS FOR ANALYZING A SINGLE SYSTEM
 #
 
-def _check_bios_version(wversion, cversion):
-    log_str = 'Checking bios version:'
+def _check_bios_version(wversion, cversion, **kwargs):
+    log_str = 'Checking bios version: '
 
     if wversion == cversion:
         log_str += '{0} == {1}, OK!'.format(wversion, cversion)
@@ -239,8 +239,31 @@ def _get_processor_info(**kwargs):
     else:
         return stderr
 
+def _get_kernel_version(**kwargs):
+    '''
+    Get the kernel version from platform.uname or uname -r directly.
+    '''
+    log.info('Gathering kernel version information')
 
-def _get_microcode_info():
+    distro = _get_os_release()
+    print kwargs
+
+    if kwargs['use_uname_r']:
+        retcode, stdout, stderr = _run_cmd(['/bin/uname', '-r'])
+        if retcode == 0:
+            return stdout
+        else:
+            return stderr
+    elif re.match('^(debian|ubuntu)$', distro, re.I):
+        return platform.uname()[3].split()[3]
+
+    elif re.match('^(redhat|centos)$', distro, re.I):
+        return platform.uname()[2]
+    else:
+        return 'Unable to retriebe kernel version, unknown distro?'
+ 
+
+def _get_microcode_info(**kwargs):
     '''
     Gather microcode versions for installed cpus. Relies
     on Intels iucode-tool and amds <something>-tool.
@@ -341,7 +364,7 @@ def _run_cmd(cmd):
             cwd='.'
         )
 
-#        log.debug('Executing command \'{0}\''.format(cmd))
+        log.debug('Executing command \'{0}\''.format(cmd))
         process = subprocess.Popen(cmd, **kwargs)
 
         stdout, stderr = process.communicate()
@@ -367,10 +390,32 @@ def _preflight():
 # END OF HELPER FUNCTIONS
 #
 
+if __name__ == '__main__':
+    args = vars(ArgParser().parseArgs())
+    print args
 
-def main():
+    if args['debug']:
+        log = MyLogger(level=logging.DEBUG)
+    else:
+        log = MyLogger()
+
+    _preflight()
+
+    # THE COMMANDS WE WANT TO RUN TO GATHER THE REQUIRED DATA.
+    # WE EITHER CALL COMMANDS DIRECTLY OR CALL A FUNCTIION THAT
+    # PARSES THE DATA BEFORE RETURNING IT.
+    CMD = {
+        'hostname': ['/bin/hostname'],
+        'bios_version': _get_bios_info,
+        'os_release': _get_os_release,
+        'cpu_type': _get_processor_info,
+        'microcode_version': _get_microcode_info,
+        'xen_version': _get_xen_info,
+        'kernel_version': _get_kernel_version,
+        'system_product_name': _get_system_product
+    }
     ret = {}
-    
+
     for name, cmd in CMD.iteritems():
 
         try:
@@ -387,31 +432,10 @@ def main():
                     ret.update({name: stderr})
 
             elif callable(cmd):
-                ret.update({name: CMD[name]()})
+                ret.update({name: CMD[name](**args)})
  
         except (IOError, OSError) as xerr:
             ret.update({name: str(xerr)})
 
     log.info('Gathered data: {0}'.format(ret))
-    return _analyze(ret)
-
-if __name__ == '__main__':
-
-    log = MyLogger()
-    _preflight()
-
-    # THE COMMANDS WE WANT TO RUN TO GATHER THE REQUIRED DATA.
-    # WE EITHER CALL COMMANDS DIRECTLY OR CALL A FUNCTIION THAT
-    # PARSES THE DATA BEFORE RETURNING IT.
-    CMD = {
-        'hostname': ['/bin/hostname'],
-        'bios_version': _get_bios_info,
-        'os_release': _get_os_release,
-        'cpu_type': _get_processor_info,
-        'microcode_version': _get_microcode_info,
-        'xen_version': _get_xen_info,
-        'kernel_version': ['/bin/uname', '-r'],
-        'system_product_name': _get_system_product
-    }
-
-    pprint.pprint(main())
+    print _analyze(ret)
