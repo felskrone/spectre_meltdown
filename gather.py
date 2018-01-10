@@ -14,6 +14,7 @@ import pprint
 import logging
 import re
 import platform
+import argparse
 
 log = None
 
@@ -94,6 +95,52 @@ SYS_MAP = {
         'bios_version': '2.54_12-07-2017(A)(5 Jan 2018)',
     },
 }
+class ArgParser(object):
+    '''
+    '''
+
+    def __init__(self):
+        self.main_parser = argparse.ArgumentParser()
+        self.addArgs()
+        self.verbose = False
+
+    def addArgs(self):
+
+        self.main_parser.add_argument(
+            '--use-uname-r',
+            type=bool,
+            default=False,
+            dest='use_uname_r',
+            nargs='?',
+            const=True,
+            required=False,
+            help='Use uname -r instead if pythons platform.uname()'
+        )
+
+#        self.main_parser.add_argument(
+#            '-p',
+#            type=int,
+#            default=1,
+#            const=True,
+#            dest='priority',
+#            nargs='?',
+#            required=False,
+#            help='Set job priority'
+#        )
+
+        self.main_parser.add_argument(
+            '-d',
+            type=bool,
+            default=False,
+            const=True,
+            dest='debug',
+            nargs='?',
+            required=False,
+            help='Output debug messages'
+        )
+
+    def parseArgs(self):
+        return self.main_parser.parse_args()
 
 
 class MyLogger(object):
