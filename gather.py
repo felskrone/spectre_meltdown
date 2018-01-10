@@ -35,10 +35,22 @@ KERNEL_VERSIONS = {
     ]
 }
 
+# 
+# This is a list of regexes that will be run against the value in
+# __main__.ret['cpu_type']. That gets filled in _get_processor_info()
+# and since the list of cpus being updated by intel is huge, you will
+# most likely have to adjust/extend the regexes for the processors you
+# are currently using.
+#
+MC_VERSIONS = {
+    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+v4.*$': '0xb000025',
+    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+v3.*$': '0x3b',
+}
+
 #
 # A big map of systems with their required versions to be safe for meltdown/spectre
 #
-SYS_MAP = {
+BIOS_VERSIONS = {
     # ALL DELL R2xx Models
     'PowerEdge R210': {
         'bios_version': None,
@@ -124,16 +136,16 @@ class ArgParser(object):
             help='Use uname -r instead if pythons platform.uname()'
         )
 
-#        self.main_parser.add_argument(
-#            '-p',
-#            type=int,
-#            default=1,
-#            const=True,
-#            dest='priority',
-#            nargs='?',
-#            required=False,
-#            help='Set job priority'
-#        )
+        self.main_parser.add_argument(
+            '-v',
+            type=bool,
+            default=False,
+            const=True,
+            dest='verbose',
+            nargs='?',
+            required=False,
+            help='Output progress info'
+        )
 
         self.main_parser.add_argument(
             '-d',
@@ -154,14 +166,17 @@ class MyLogger(object):
     '''
     Simple logging class
     '''
-    def __init__(self, level=logging.DEBUG):
+    def __init__(self, level=None):
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(level)
-        ch_format = logging.Formatter('%(levelname)s - %(message)s')
-        ch = logging.StreamHandler()
-        ch.setFormatter(ch_format)
-        ch.setLevel(level)
-        self.logger.addHandler(ch)
+        if level != None and level == logging.INFO or level == logging.DEBUG:
+            self.logger.setLevel(level)
+            ch_format = logging.Formatter('%(levelname)s - %(message)s')
+            ch = logging.StreamHandler()
+            ch.setFormatter(ch_format)
+            ch.setLevel(level)
+            self.logger.addHandler(ch)
+        else:
+            self.logger.addHandler(logging.NullHandler())
 
     def info(self, msg):
         self.logger.info(msg)
@@ -182,9 +197,40 @@ def _check_bios_version(wversion, cversion, **kwargs):
     if wversion == cversion:
         log_str += '{0} == {1}, OK!'.format(wversion, cversion)
         log.info(log_str)
+        return True
     else:
         log_str += '{0} != {1}, FAILED!'.format(wversion, cversion)
         log.info(log_str)
+        return False
+
+def _check_microcode_version(wversion, cpu_type, **kwargs):
+    log_str = 'Checking microcode version: '
+
+    for rgx, safe_version in MC_VERSIONS.iteritems():
+        log.debug('re-matching \'{0}\' against \'{1}\''.format(
+                rgx,
+                cpu_type
+            )
+        )
+        if re.match(rgx, cpu_type):
+            if wversion ==  safe_version:
+                log_str += '{0} is up2date for {1}, OK'.format(
+                    safe_version,
+                    cpu_type
+                )
+                log.info(log_str)
+                return True
+            else:
+                log_str += '{0} != {1} for {2}, FAILED'.format(
+                    wversion,
+                    safe_version,
+                    cpu_type
+                )
+                log.error(log_str)
+                return False
+    log.error('Failed to match current cpu against known list, check regexes!')
+    return False
+
 
 def _check_kernel_version(wversion, distro):
     '''
@@ -198,13 +244,17 @@ def _check_kernel_version(wversion, distro):
     if wversion in safe_kernels:
         log_str += '{0} found in {0}-kernels, OK'.format(wversion, distro)
         log.info(log_str)
+        return True
 
     elif wversion in cust_kernels:
         log_str += '{0} found in Custom-kernels, OK'.format(wversion, distro)
         log.info(log_str)
+        return True
+
     else:
         log_str += '{0} NOT found in {1}- or Custom-kernels, FAILED'.format(wversion, distro)
         log.info(log_str)
+        return False
  
    
 
@@ -213,15 +263,16 @@ def _analyze(wdata, **kwargs):
     Check the gathered versions against required versions
     '''
     #  create shortcut to platform data
-    cdata = SYS_MAP[wdata['system_product_name']]
+    cdata = BIOS_VERSIONS[wdata['system_product_name']]
 
-    _check_bios_version(wdata['bios_version'], cdata['bios_version'])
-    _check_kernel_version(wdata['kernel_version'], wdata['os_release'])
+    print(_check_bios_version(wdata['bios_version'], cdata['bios_version']))
+    print(_check_kernel_version(wdata['kernel_version'], wdata['os_release']))
+    print(_check_microcode_version(wdata['microcode_version'], wdata['cpu_type']))
 
 #
-# HELPER FUNCTIONS TO PARSE/EDIT DATA THAT CANT BE USED AS IS
-# FROM STDOUT/STDERR LIKE 'dmidecode -s processer-version'
-# WHICH RETURNS MORE THAN ONE LINE/VALUE
+# Helper functions to parse/edit data that cant be used as is
+# from stdout/stderr like 'dmidecode -s processer-version'
+# which returns more than one line/value.
 #
 def _get_os_release(**kwargs):
     return platform.dist()[0].title()
@@ -230,7 +281,7 @@ def _get_processor_info(**kwargs):
     '''
     Gather processor model and version, only use first line since
     we cant play mix and match with different processors on a single
-    board.
+    motherboard.
     '''
     log.info('Gathering processor information')
     retcode, stdout, stderr = _run_cmd(['/usr/sbin/dmidecode', '-s', 'processor-version'])
@@ -246,7 +297,6 @@ def _get_kernel_version(**kwargs):
     log.info('Gathering kernel version information')
 
     distro = _get_os_release()
-    print kwargs
 
     if kwargs['use_uname_r']:
         retcode, stdout, stderr = _run_cmd(['/bin/uname', '-r'])
@@ -260,7 +310,7 @@ def _get_kernel_version(**kwargs):
     elif re.match('^(redhat|centos)$', distro, re.I):
         return platform.uname()[2]
     else:
-        return 'Unable to retriebe kernel version, unknown distro?'
+        return 'Unable to retrieve kernel version, unknown distro?'
  
 
 def _get_microcode_info(**kwargs):
@@ -293,7 +343,7 @@ def _get_system_product(**kwargs):
     retcode, stdout, stderr = _run_cmd(['/usr/sbin/dmidecode', '-s', 'system-product-name'])
     
     if retcode == 0:
-        if stdout.strip() in SYS_MAP:
+        if stdout.strip() in BIOS_VERSIONS:
             return stdout
         else:
             return 'system not supported'
@@ -303,7 +353,7 @@ def _get_system_product(**kwargs):
 
 def _get_bios_info(**kwargs):
     '''
-    Gather bios versions from dell hp servers
+    Gather bios versions from dell and hp servers
     '''
     log.info('Gathering bios version information')
     sysprod = _get_system_product()
@@ -312,7 +362,7 @@ def _get_bios_info(**kwargs):
     if re.match('^poweredge.*$', sysprod, re.I):
         retcode, stdout, stderr = _run_cmd(['/usr/sbin/dmidecode', '-s', 'bios-version'])
 
-    # HP only has crap in dmidecode data, but ipmitool seems wto work
+    # HP only has crap in dmidecode data, but ipmitool seems to work
     elif re.match('^proliant.*$', sysprod, re.I):
         retcode, stdout, stderr = _run_cmd(['/usr/bin/ipmitool', 'mc', 'info'])
 
@@ -379,7 +429,7 @@ def _preflight():
     Some minor checks to save time and work
     '''
     sysprod = _get_system_product()
-    if sysprod not in SYS_MAP:
+    if sysprod not in BIOS_VERSIONS:
         log.error('System type {0} is NOT yet supported'.format(sysprod))
         sys.exit(1)
     else:
@@ -392,10 +442,11 @@ def _preflight():
 
 if __name__ == '__main__':
     args = vars(ArgParser().parseArgs())
-    print args
 
     if args['debug']:
         log = MyLogger(level=logging.DEBUG)
+    elif args['verbose']:
+        log = MyLogger(level=logging.INFO)
     else:
         log = MyLogger()
 
@@ -422,7 +473,8 @@ if __name__ == '__main__':
             if isinstance(cmd, list):
                 retcode, stdout, stderr = _run_cmd(cmd) 
 
-                # a function that returns False, False, False is skipped
+                # A function that returns False, False, False is skipped. For
+                # example _get_xen_info() does, if no xm/xl util is not found.
                 if not retcode and not stdout and not stderr:
                     continue
 
@@ -438,4 +490,4 @@ if __name__ == '__main__':
             ret.update({name: str(xerr)})
 
     log.info('Gathered data: {0}'.format(ret))
-    print _analyze(ret)
+    _analyze(ret)
