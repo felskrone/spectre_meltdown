@@ -185,27 +185,48 @@ def _check_bios_version(wversion, cversion):
     else:
         log_str += '{0} != {1}, FAILED!'.format(wversion, cversion)
         log.info(log_str)
+
+def _check_kernel_version(wversion, distro):
+    '''
+    Check current kernel version against known good versions
+    from distro list and custom kernel names.
+    '''
+    log_str = 'Checking kernel version: '
+    safe_kernels = KERNEL_VERSIONS[distro]
+    cust_kernels  = KERNEL_VERSIONS['Custom']
+
+    if wversion in safe_kernels:
+        log_str += '{0} found in {0}-kernels, OK'.format(wversion, distro)
+        log.info(log_str)
+
+    elif wversion in cust_kernels:
+        log_str += '{0} found in Custom-kernels, OK'.format(wversion, distro)
+        log.info(log_str)
+    else:
+        log_str += '{0} NOT found in {1}- or Custom-kernels, FAILED'.format(wversion, distro)
+        log.info(log_str)
+ 
    
 
-def _analyze(wdata):
+def _analyze(wdata, **kwargs):
     '''
     Check the gathered versions against required versions
     '''
     #  create shortcut to platform data
     cdata = SYS_MAP[wdata['system_product_name']]
-    kernel_version = KERNEL_VERSIONS[wdata['os_release']]
 
     _check_bios_version(wdata['bios_version'], cdata['bios_version'])
+    _check_kernel_version(wdata['kernel_version'], wdata['os_release'])
 
 #
 # HELPER FUNCTIONS TO PARSE/EDIT DATA THAT CANT BE USED AS IS
 # FROM STDOUT/STDERR LIKE 'dmidecode -s processer-version'
 # WHICH RETURNS MORE THAN ONE LINE/VALUE
 #
-def _get_os_release():
+def _get_os_release(**kwargs):
     return platform.dist()[0].title()
 
-def _get_processor_info():
+def _get_processor_info(**kwargs):
     '''
     Gather processor model and version, only use first line since
     we cant play mix and match with different processors on a single
@@ -241,7 +262,7 @@ def _get_microcode_info():
     else:
         return 'unknown'
 
-def _get_system_product():
+def _get_system_product(**kwargs):
     '''
     Get system-product-name with dmidecode
     '''
@@ -257,7 +278,7 @@ def _get_system_product():
         return stderr
 
 
-def _get_bios_info():
+def _get_bios_info(**kwargs):
     '''
     Gather bios versions from dell hp servers
     '''
@@ -280,7 +301,7 @@ def _get_bios_info():
         return 'system not supported'
 
 
-def _get_xen_info():
+def _get_xen_info(**kwargs):
     '''
     Gather xen-version, supports xl and xm for older versions.
     If your binary is located somewhere else, it might be easier
