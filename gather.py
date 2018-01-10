@@ -22,10 +22,17 @@ log = None
 # Kernel Version that are known to be safe
 #
 KERNEL_VERSIONS = {
-    'Debian': [],
-    'Redht': [],
+    'Debian': [
+        '3.2.96-3-amd64',    # wheezy
+        '3.16.51-3-amd64',   # jessie
+        '4.9.65-3-amd64',    # stretch
+        '4.14.12-2-amd64'    # sid
+    ],
+    'Redhat': [],
     'CentOS': [],
-    'Custom': []
+    'Custom': [
+        '4.4.74-1-xen0-he+'
+    ]
 }
 
 #
