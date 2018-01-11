@@ -2,10 +2,17 @@
 This script is work in progress. For now it only contains the logic(!) to check a system
 for various software versions and their vulnerability against spectre/meltdown. It is lacking
 lots of version information for various hardware platforms, microcode versions etc. simply because
-the version list is huge and i only have access to a very limited number of distros and platforms.
+the version lists are huge and i only have access to a very limited number of distros and platforms
+and processors.
 
-Please supply your version information if its not already in here. Either setup a PR or contact me on
-slack, jabber, mail or mention me on any confluenc article /jira-issue.
+Right now especially versions of applied microcode updates are of interest to me since the list of
+processors having to be updated is huge. As of now i have no idea, wether an update to any v3 Xeon
+results in the same microcode version or if every Xeon-model (and their are 700+!) has its own
+version, so every version help.
+
+Please supply your version information if its not already in here. Either setup a PR or contact me
+on slack or jabber, mail me at volker.schwicking@godaddy.com or mention me on any confluence article
+or jira-issue.
 
 # A script to check a server for meltdown/spectre vulnerability.
 
@@ -71,12 +78,15 @@ Todo
 
 FAQ
 ===
+I found a bug!
+Contact me via or setup a PR :-)
+
 Why is my distro not supported?
 I mainly have access to Debian-systems and a limited number of CPUs. Thats the info i can supply. The rest
 has to be gathered by you to help others.
 
 How can i add supported for my hardware platform?
-Update the BIOS_VERSIONS dictionary with your information. The name is the one returned by 'dmidecode -s system-product-name'.
+Update the BIOS_VERSIONS dictionary with your information. The dictionaries key-name is the string returned by 'dmidecode -s system-product-name'.
 
 How can i add supported for my processor and microcode version?
 Update the MC_VERSIONS dictionary with your information. The processor name is taken from '/proc/cpuinfo'.
