@@ -32,7 +32,9 @@ Supported Distros
 Supported hardware platforms
 ============================
  - Dell PowerEdge R2xx, R4xx, R5xx, R6xx, R7xx, R8xx (lacking bios versions!)
- - HP ProLiant DL160 Gen9, DL380 Gen9 (lacking bios versions!)
+ - HP ProLiant DL1xx, DL3xx (lacking bios versions!)
+
+ Look here for a complete list: https://stash.emea.godaddy.com:8443/projects/SAWH/repos/spectre_meltdown/browse/gather.py#70 
 
 Other platforms can be added easily, see FAQ below.
 
