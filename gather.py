@@ -524,7 +524,7 @@ def _get_xen_info(**kwargs):
         XEN_BIN = '/usr/sbin/xm'
     else:
         log.info('No xm/xl binary found, skipping xen checks!')
-        return False, False, False
+        return 0
 
     retcode, stdout, stderr = _run_cmd([XEN_BIN, 'info'])
 
@@ -654,11 +654,6 @@ if __name__ == '__main__':
             if isinstance(cmd, list):
                 retcode, stdout, stderr = _run_cmd(cmd)
 
-                # A function that returns False, False, False is skipped. For
-                # example _get_xen_info() does, if no xm/xl util is not found.
-                if not retcode and not stdout and not stderr:
-                    continue
-
                 # Command was successfully, add the return
                 if retcode == 0:
                     sysdata.update({name: stdout})
@@ -667,7 +662,16 @@ if __name__ == '__main__':
 
             # Execute the callable and use the returned data is
             elif callable(cmd):
-                sysdata.update({name: CMD[name](**args)})
+
+                call_data = CMD[name](**args)
+
+                # Results of callables returning a single 0
+                # are skipped completely from the results. For
+                # example is xen is not installed at all
+                if call_data == 0:
+                    continue
+                else:
+                    sysdata.update({name: call_data})
 
         # IF any command fails, add the returned error as result
         except (IOError, OSError) as xerr:
