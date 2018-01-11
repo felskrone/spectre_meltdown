@@ -30,6 +30,7 @@ Requirements:
 - dmidecode utility
 - intel-microcode (iucode-tool) if you run intel cpus
 - amd64-microcode if you run amd cpus
+- a directory containing the latest microcode updates from intel
 
 What does it do?
 ================
@@ -49,6 +50,13 @@ See all the _check_*() functions on how versions are checked.
 What it does not do
 ===================
 It does NOT change anything, it just collects data and analyzes it.
+
+How do i use it?
+================
+Have a look at the help with 'gather.py -h' and adjust enter parameters is required. There are no
+special parameters required.
+
+The output can be customized to be parseable or readable.
 
 Todo
 ====
