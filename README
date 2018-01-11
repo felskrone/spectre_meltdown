@@ -1,12 +1,13 @@
-Note: This script is work in progress. For now it only contains the logic(!) to check a system
+## Note: 
+This script is work in progress. For now it only contains the logic(!) to check a system
 for various software versions and their vulnerability against spectre/meltdown. It is lacking
 lots of version information for various hardware platforms, microcode versions etc. simply because
 the version list is huge and i only have access to a very limited number of distros and platforms.
 
 Please supply your version information if its not already in here. Either setup a PR or contact me on
-slack, jabber, mail or mention me on confluenc/jira.
+slack, jabber, mail or mention me on any confluenc article /jira-issue.
 
-A script to check a server for meltdown/spectre vulnerability.
+# A script to check a server for meltdown/spectre vulnerability.
 
 Supported Distros
 ==================
@@ -29,8 +30,11 @@ Requirements:
 - Python2 (since it has to work on older distros that might not have 3)
 - dmidecode utility
 - intel-microcode (iucode-tool) if you run intel cpus
-- amd64-microcode if you run amd cpus
-- a directory containing the latest microcode updates from intel
+- amd64-microcode if you run amd cpus (this is not fully implemented yet.
+
+Optional:
+- a directory containing the latest microcode updates from intel, then use --intel-updates-dir and the skript will tell you if the
+processors microcode should be updated. 
 
 What does it do?
 ================
@@ -82,3 +86,6 @@ Update the KERNEL_VERSIONS dictionary with your distro and safe kernel-version i
 
 How can i add safe xen-version?
 Update XEN_VERSIONS with a known to be safe version string. _get_xen_version() uses the string from 'xl/xm info'.
+
+The script fails with 'some error...'!
+Please report to me directly or even better, fix it and setup a PR! :-)
