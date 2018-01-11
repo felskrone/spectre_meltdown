@@ -395,7 +395,6 @@ def _get_processor_info(**kwargs):
             try:
                 cpu_details['family'] = int(re.match('cpu family\s+:\s+(.*)$', l).groups()[0])
             except AttributeError as rgx_err:
-                log.debug(str(rgx_err))
                 pass
 
             try:
