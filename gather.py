@@ -266,17 +266,21 @@ def _check_xen_version(xversion, **kwargs):
     log_str = 'Checking xen version: '
 
     if xversion in XEN_VERSIONS['Custom']:
-        log_str += 'xen version {0} found in Custom-versions, OK'.format(xversion)
+        log_str += 'xen version \'{0}\' found in Custom-versions, OK'.format(xversion)
         log.info(log_str)
         return True
 
     for cversion in XEN_VERSIONS['Main']:
         if version(xversion) >= version(cversion):
-            log_str += 'xen version {0} >= {1}, OK!'.format(xversion, cversion)
+            log_str += 'xen version \'{0}\' >= \'{1}\', OK!'.format(xversion, cversion)
             log.info(log_str)
             return True
 
-    log_str += '{0} not found in Xen-Custom- and is {0} < Xen-Main-versions, FAILED!'.format(xversion)
+    msg = (
+        '\'{0}\' not found in Xen-custom-versions '
+        'and {0} < Xen-Main-versions, FAILED!'
+    )
+    log_str += msg.format(xversion)
     log.info(log_str)
     return False
 
@@ -293,11 +297,11 @@ def _check_bios_version(wversion, **kwargs):
        return False
 
     if version(wversion) > version(cdata['bios_version']):
-        log_str += '{0} >= {1}, OK!'.format(wversion, cdata['bios_version'])
+        log_str += '\'{0}\' >= \'{1}\', OK!'.format(wversion, cdata['bios_version'])
         log.info(log_str)
         return True
     else:
-        log_str += '{0} < {1}, FAILED!'.format(wversion, cdata['bios_version'])
+        log_str += '\'{0}\' < \'{1}\', FAILED!'.format(wversion, cdata['bios_version'])
         log.info(log_str)
         return False
 
@@ -329,7 +333,7 @@ def _check_microcode_version(wversion, cpu_type, **kwargs):
 
         for mcf in mc_files:
             if re.match(cpu_mc_name, mcf):
-                log_str += 'Update found ({0})'.format(cpu_mc_name)
+                log_str += 'Update found (filename: {0})'.format(cpu_mc_name)
                 log.info(log_str)
     else:
         log_str += 'no directory defined, skipping check!'
@@ -349,17 +353,17 @@ def _check_kernel_version(wversion, distro):
     cust_kernels  = KERNEL_VERSIONS['Custom']
 
     if wversion in safe_kernels:
-        log_str += '{0} found in {0}-kernels, OK'.format(wversion, distro)
+        log_str += '\'{0}\' found in {0}-kernels, OK'.format(wversion, distro)
         log.info(log_str)
         return True
 
     elif wversion in cust_kernels:
-        log_str += '{0} found in Custom-kernels, OK'.format(wversion, distro)
+        log_str += '\'{0}\' found in Custom-kernels, OK'.format(wversion, distro)
         log.info(log_str)
         return True
 
     else:
-        log_str += '{0} NOT found in {1}- or Custom-kernels, FAILED'.format(wversion, distro)
+        log_str += '\'{0}\' NOT found in {1}- or Custom-kernels, FAILED'.format(wversion, distro)
         log.info(log_str)
         return False
 
