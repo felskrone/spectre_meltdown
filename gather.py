@@ -88,6 +88,12 @@ BIOS_VERSIONS = {
     'PowerEdge R420': {
         'bios_version': False,
     },
+    'PowerEdge R430': {
+        'bios_version': '2.7.0',
+    },
+    'PowerEdge T430': {
+        'bios_version': '2.7.0',
+    },
 
     # ALL DELL R5xx Models
     'PowerEdge R510': {
@@ -96,24 +102,27 @@ BIOS_VERSIONS = {
     'PowerEdge R515': {
         'bios_version': False,
     },
+    'PowerEdge R530': {
+        'bios_version': '2.7.0',
+    },
 
     # ALL DELL R6xx Models
     'PowerEdge R610': {
         'bios_version': False,
+    },
+    'PowerEdge R630': {
+        'bios_version': '2.7.0',
     },
 
     # ALL DELL R7xx Models
     'PowerEdge R710': {
         'bios_version': False,
     },
-    'PowerEdge R720': {
-        'bios_version': False,
-    },
-    'PowerEdge R720xd': {
-        'bios_version': False,
+    'PowerEdge R730': {
+        'bios_version': '2.7.0'
     },
     'PowerEdge R730xd': {
-        'bios_version': False,
+        'bios_version': '2.7.0',
     },
 
     # ALL DELL R8xx Models
@@ -122,11 +131,29 @@ BIOS_VERSIONS = {
     },
 
     # ALL HP DL1xx
+    'ProLiant DL120 Gen9': {
+        'bios_version': '2.54',
+    },
     'ProLiant DL160 Gen9': {
+        'bios_version': '2.54',
+    },
+    'ProLiant DL165 Gen7': {
         'bios_version': False,
     },
+    'ProLiant DL180 Gen9': {
+        'bios_version': '2.54',
+    },
 
-    # ALL HP :DL3xx
+    # ALL HP DL3xx
+    'ProLiant DL320e Gen8': {
+        'bios_version': '2017.12.12',
+    },
+    'ProLiant DL360 Gen8': {
+        'bios_version': False,
+    },
+    'ProLiant DL360e Gen9': {
+        'bios_version': '2.54',
+    },
     'ProLiant DL380 Gen9': {
         'bios_version': '2.54'
     }
