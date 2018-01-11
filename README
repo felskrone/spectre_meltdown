@@ -31,8 +31,8 @@ Supported Distros
 
 Supported hardware platforms
 ============================
- - Dell PowerEdge R2xx, R4xx, R5xx, R6xx, R7xx, R8xx
- - HP ProLiant DL160 Gen9, DL380 Gen9
+ - Dell PowerEdge R2xx, R4xx, R5xx, R6xx, R7xx, R8xx (lacking bios versions!)
+ - HP ProLiant DL160 Gen9, DL380 Gen9 (lacking bios versions!)
 
 Other platforms can be added easily, see FAQ below.
 
@@ -68,10 +68,10 @@ It does NOT change anything, it just collects data and analyzes it.
 
 How do i use it?
 ================
-Have a look at the help with 'gather.py -h' and adjust enter parameters is required. There are no
-special parameters required.
+Have a look at the help with 'gather.py -h' and adjust parameters as required. 
+If your kernel version looks weird, try the '--use-uname-r' parameter.
 
-The output can be customized to be parseable or readable.
+The output can be customized to be parseable or readable: raw, json, short or colored
 
 Todo
 ====
