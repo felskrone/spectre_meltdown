@@ -287,6 +287,11 @@ def _check_bios_version(wversion, **kwargs):
     #  create shortcut to platform data
     cdata = BIOS_VERSIONS[kwargs['system_product_name']]
 
+    if not cdata['bios_version']:
+       msg = 'Cant check bios, no data for platform {0} available, FAILED!'
+       log.error(msg.format(kwargs['system_product_name']))
+       return False
+
     if version(wversion) > version(cdata['bios_version']):
         log_str += '{0} >= {1}, OK!'.format(wversion, cdata['bios_version'])
         log.info(log_str)
