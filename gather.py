@@ -11,7 +11,7 @@ import logging
 import re
 import platform
 import argparse
-import simplejson
+import json
 from distutils.version import LooseVersion as version
 
 log = None
