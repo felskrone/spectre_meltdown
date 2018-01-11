@@ -7,12 +7,16 @@ and processors.
 
 Right now especially versions of applied microcode updates are of interest to me since the list of
 processors having to be updated is huge. As of now i have no idea, wether an update to any v3 Xeon
-results in the same microcode version or if every Xeon-model (and their are 700+!) has its own
-version, so every version help.
+results in the same microcode version or if every Xeon-model (and there are 700+!) has its own
+version, so every version helps.
 
 Please supply your version information if its not already in here. Either setup a PR or contact me
 on slack or jabber, mail me at volker.schwicking@godaddy.com or mention me on any confluence article
 or jira-issue.
+
+For bugs see FAQ->I found  bug.
+For improvements setup a PR or contact me.
+For feature requests setup a PR or contact me.
 
 # A script to check a server for meltdown/spectre vulnerability.
 
@@ -79,7 +83,18 @@ Todo
 FAQ
 ===
 I found a bug!
-Contact me via or setup a PR :-)
+Damn! Contact me or setup a PR :-) I always need the output of
+
+$ cat /proc/cpuinfo
+$ /bin/hostname
+$ /bin/uname -r (yes seperately!)
+$ /bin/uname -v (yes seperately!)
+$ /bin/uname -a  (yes seperately!)
+$ dmidecode -s system-product-name
+$ dmidecode -s bios-version
+$ dmidecode -s processor-version
+$ ipmitool mc info
+$ iucode-tool -S (if its an intel cpu and that area of the script is causing problems)
 
 Why is my distro not supported?
 I mainly have access to Debian-systems and a limited number of CPUs. Thats the info i can supply. The rest
