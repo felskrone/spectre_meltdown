@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-Gather system information regarding spectre and meltdown. 
+Gather system information regarding spectre and meltdown.
 '''
 
 import os
@@ -51,7 +51,7 @@ MC_VERSIONS = {
     '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+v3.*$': '0x3b',
 }
 
-# 
+#
 # A list of known to be safe xen-versions
 # Presumptions:
 #     Xen 4.8 and 4.10 are safe, xen < 4.7 are not: https://blog.xenproject.org/2018/01/04/xen-project-spectremeltdown-faq/
@@ -351,11 +351,11 @@ def _get_processor_info(**kwargs):
         'model': None,
         'family': None,
         'stepping': None,
-    } 
+    }
 
     # Get processor type string
     retcode, stdout, stderr = _run_cmd(['/usr/sbin/dmidecode', '-s', 'processor-version'])
-   
+
     if retcode == 0:
         cpu_details['plain'] = stdout.split('\n')[0]
     else:
@@ -379,8 +379,8 @@ def _get_processor_info(**kwargs):
                 cpu_details['model'] = int(re.match('model\s+:\s+(.*)$', l).groups()[0])
             except AttributeError as rgx_err:
                 pass
-        
-           # break on second processor if present 
+
+           # break on second processor if present
             if l.startswith('processor    :') and ndx > 0:
                 break
 
@@ -392,7 +392,7 @@ def _get_processor_info(**kwargs):
         log.debug('Failed to extract stepping from current processor-info!')
 
     return cpu_details
- 
+
 
 def _get_kernel_version(**kwargs):
     '''
@@ -415,7 +415,7 @@ def _get_kernel_version(**kwargs):
         return platform.uname()[2]
     else:
         return 'Unable to retrieve kernel version, unknown distro?'
- 
+
 
 def _get_microcode_info(**kwargs):
     '''
@@ -428,7 +428,7 @@ def _get_microcode_info(**kwargs):
     if re.match('^.*xeon.*$', cpu_details['plain'], re.I):
         log.debug('Getting microcode version with intels iucode-tool...')
         retcode, stdout, stderr = _run_cmd(['/usr/sbin/iucode-tool', '-S'])
-       
+
         # The iucode-tool returns its data on stderr
         if retcode == 0 and len(stderr) > 0:
             return stderr.split()[-1]
@@ -445,7 +445,7 @@ def _get_system_product(**kwargs):
     '''
     log.info('Gathering system-product information')
     retcode, stdout, stderr = _run_cmd(['/usr/sbin/dmidecode', '-s', 'system-product-name'])
-    
+
     if retcode == 0:
         if stdout.strip() in BIOS_VERSIONS:
             return stdout
@@ -508,7 +508,7 @@ def _run_cmd(cmd):
     '''
     Run arbitrary commands
     '''
-   
+
     if not os.path.isfile(cmd[0]) or not os.access(cmd[0], os.X_OK):
         raise IOError('{0} does not exist or is not executable!'.format(cmd[0]))
 
@@ -620,7 +620,7 @@ if __name__ == '__main__':
 
         try:
             if isinstance(cmd, list):
-                retcode, stdout, stderr = _run_cmd(cmd) 
+                retcode, stdout, stderr = _run_cmd(cmd)
 
                 # A function that returns False, False, False is skipped. For
                 # example _get_xen_info() does, if no xm/xl util is not found.
