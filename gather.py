@@ -300,7 +300,7 @@ def _check_microcode_version(wversion, cpu_type, **kwargs):
     log_str = 'Checking microcode update status: '
 
     if  len(kwargs['intel_updates_dir']) > 0:
-        if not os.path.isdir(kwargs['intel_updates_dir']):
+        if not os.path.isdir(str(kwargs['intel_updates_dir'])):
             log.error('Directory {0} not found, cant check microcodes updates, FAILED!'.format(
                     kwargs['intel_updates_dir']
                 )
