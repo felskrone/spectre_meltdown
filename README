@@ -1,0 +1,76 @@
+Note: This script is work in progress. For now it only contains the logic(!) to check a system
+for various software versions and their vulnerability against spectre/meltdown. It is lacking
+lots of version information for various hardware platforms, microcode versions etc. simply because
+the version list is huge and i only have access to a very limited number of distros and platforms.
+
+Please supply your version information if its not already in here. Either setup a PR or contact me on
+slack, jabber, mail or mention me on confluenc/jira.
+
+A script to check a server for meltdown/spectre vulnerability.
+
+Supported Distros
+==================
+- Debian Wheezy
+- Debian Jessie
+- Debian Stretch
+- Debian Sid
+- RHEL6/CentOS
+- RHEL7/CentOS
+
+Supported hardware platforms
+============================
+ - Dell PowerEdge R2xx, R4xx, R5xx, R6xx, R7xx, R8xx
+ - HP ProLiant DL160 Gen9, DL380 Gen9
+
+Other platforms can be added easily, see FAQ below.
+
+Requirements:
+=============
+- Python2 (since it has to work on older distros that might not have 3)
+- dmidecode utility
+- intel-microcode (iucode-tool) if you run intel cpus
+- amd64-microcode if you run amd cpus
+
+What does it do?
+================
+The first step is to collect system version information for bios, kernel, microcode and xen (if installed).
+The way the data is collected, varies depending on the distro. See all the _get_*() functions on how thats done.
+
+Once the data is collected, it is checked against known good versions. Good versions are compiled in
+variables at the top.
+
+KERNEL_VERSIONS - by distro, custom versions supported in field 'Custom'
+XEN_VERSIONS    - known to be safe xen versions, custom versions supported in field 'Custom'
+BIOS_VERSIONS   - mapping from hardware platform to bios version, no custom versions supported
+MC_VERSIONS     - mapping from cpu to microcode version, no custom versions supported
+
+See all the _check_*() functions on how versions are checked.
+
+What it does not do
+===================
+It does NOT change anything, it just collects data and analyzes it.
+
+Todo
+====
+- Fully implement microcode check support. As of now it can only tell if an update is available.
+- Extend version information list for bios, microcode, kernels and xen versions.
+- What do you need?
+
+
+FAQ
+===
+Why is my distro not supported?
+I mainly have access to Debian-systems and a limited number of CPUs. Thats the info i can supply. The rest
+has to be gathered by you to help others.
+
+How can i add supported for my hardware platform?
+Update the BIOS_VERSIONS dictionary with your information. The name is the one returned by 'dmidecode -s system-product-name'.
+
+How can i add supported for my processor and microcode version?
+Update the MC_VERSIONS dictionary with your information. The processor name is taken from '/proc/cpuinfo'.
+
+How can i add supported for my distro?
+Update the KERNEL_VERSIONS dictionary with your distro and safe kernel-version information. The distro-name must match the name returned by _get_os_release().
+
+How can i add safe xen-version?
+Update XEN_VERSIONS with a known to be safe version string. _get_xen_version() uses the string from 'xl/xm info'.
