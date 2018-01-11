@@ -287,6 +287,7 @@ def _check_microcode_version(wversion, cpu_type, **kwargs):
                     kwargs['intel_updates_dir']
                 )
             )
+            return False
 
         cpu_mc_name = '{:02x}-{:02x}-{:02x}'.format(
             cpu_type['family'],
