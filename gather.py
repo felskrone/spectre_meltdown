@@ -477,7 +477,7 @@ def _get_system_product(**kwargs):
         if stdout.strip() in BIOS_VERSIONS:
             return stdout
         else:
-            return 'system not supported'
+            print('System {0} is not (yet) supported!'.format(stdout))
     else:
         return stderr
 
