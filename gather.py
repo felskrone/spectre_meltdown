@@ -137,7 +137,7 @@ BIOS_VERSIONS = {
     'ProLiant DL160 Gen9': {
         'bios_version': '2.54',
     },
-    'ProLiant DL165 Gen7': {
+    'ProLiant DL165 G7': {
         'bios_version': False,
     },
     'ProLiant DL180 Gen9': {
