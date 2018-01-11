@@ -1,10 +1,6 @@
 #!/usr/bin/python
 '''
 Gather system information regarding spectre and meltdown. 
-
-Presumptions:
-  Kernel 4.14 is safe: http://www.kroah.com/log/blog/2018/01/06/meltdown-status/
-  Xen 4.8 and 4.10 are safe, 4.6 and 4.7 are not: https://blog.xenproject.org/2018/01/04/xen-project-spectremeltdown-faq/
 '''
 
 import os
@@ -15,48 +11,69 @@ import logging
 import re
 import platform
 import argparse
+import simplejson
+from distutils.version import LooseVersion as version
 
 log = None
 
 #
-# Kernel Version that are known to be safe
+# Kernel Versions that are known to be safe
+# Presumptions:
+# Kernel 4.14 is safe: http://www.kroah.com/log/blog/2018/01/06/meltdown-status/
 #
 KERNEL_VERSIONS = {
     'Debian': [
+        # Source: https://security-tracker.debian.org/tracker/CVE-2017-5754
         '3.2.96-3-amd64',    # wheezy
         '3.16.51-3-amd64',   # jessie
         '4.9.65-3-amd64',    # stretch
         '4.14.12-2-amd64'    # sid
     ],
-    'Redhat': [],
+    'Redhat': [
+        '3.10.0-693.11.6.x86_64',  # CentOS/RHEL7
+        '2.6.32-696.18.7.el6',     # CentOS/RHEL6
+    ],
     'CentOS': [],
     'Custom': [
-        '4.4.74-1-xen0-he+'
+        '4.14'
     ]
 }
 
-# 
-# This is a list of regexes that will be run against the value in
-# __main__.ret['cpu_type']. That gets filled in _get_processor_info()
-# and since the list of cpus being updated by intel is huge, you will
-# most likely have to adjust/extend the regexes for the processors you
-# are currently using.
+#
+# This is a list of updates files released by intel on 20180108:
+# https://downloadcenter.intel.com/download/27431/Linux-Processor-Microcode-Data-File?product=40711
+# According to the releases notes, the files are named in 'family-model-stepping'-pattern.
+# By mapping the current processor to this files, we can tell, whether or not an update is
+# available.
 #
 MC_VERSIONS = {
     '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+v4.*$': '0xb000025',
     '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+v3.*$': '0x3b',
 }
 
+# 
+# A list of known to be safe xen-versions
+# Presumptions:
+#     Xen 4.8 and 4.10 are safe, xen < 4.7 are not: https://blog.xenproject.org/2018/01/04/xen-project-spectremeltdown-faq/
 #
-# A big map of systems with their required versions to be safe for meltdown/spectre
+XEN_VERSIONS = {
+    'Custom': [],
+    'Main': [
+        '4.8',
+        '4.10'
+    ]
+}
+
+#
+# A mapping of system-product name to its safe bios version
 #
 BIOS_VERSIONS = {
     # ALL DELL R2xx Models
     'PowerEdge R210': {
-        'bios_version': None,
+        'bios_version': False,
     },
     'PowerEdge R210 II': {
-        'bios_version': None,
+        'bios_version': False,
     },
 
     'PowerEdge R220': {
@@ -65,54 +82,54 @@ BIOS_VERSIONS = {
 
     # ALL DELL R4xx Models
     'PowerEdge R410': {
-        'bios_version': None,
+        'bios_version': False,
     },
 
     'PowerEdge R420': {
-        'bios_version': None,
+        'bios_version': False,
     },
 
     # ALL DELL R5xx Models
     'PowerEdge R510': {
-        'bios_version': None,
+        'bios_version': False,
     },
     'PowerEdge R515': {
-        'bios_version': None,
+        'bios_version': False,
     },
 
     # ALL DELL R6xx Models
     'PowerEdge R610': {
-        'bios_version': None,
+        'bios_version': False,
     },
 
     # ALL DELL R7xx Models
     'PowerEdge R710': {
-        'bios_version': None,
+        'bios_version': False,
     },
     'PowerEdge R720': {
-        'bios_version': None,
+        'bios_version': False,
     },
     'PowerEdge R720xd': {
-        'bios_version': None,
+        'bios_version': False,
     },
     'PowerEdge R730xd': {
-        'bios_version': None,
+        'bios_version': False,
     },
 
     # ALL DELL R8xx Models
     'PowerEdge R815': {
-        'bios_version': None,
+        'bios_version': False,
     },
 
     # ALL HP DL1xx
     'ProLiant DL160 Gen9': {
-        'bios_version': None,
+        'bios_version': False,
     },
 
     # ALL HP :DL3xx
     'ProLiant DL380 Gen9': {
-        'bios_version': '2.54_12-07-2017(A)(5 Jan 2018)',
-    },
+        'bios_version': '2.54'
+    }
 }
 class ArgParser(object):
     '''
@@ -133,7 +150,34 @@ class ArgParser(object):
             nargs='?',
             const=True,
             required=False,
-            help='Use uname -r instead if pythons platform.uname()'
+            help='Use uname -r instead if pythons platform.uname() (default: False)'
+        )
+
+        self.main_parser.add_argument(
+            '--out',
+            type=str,
+            default='raw',
+            dest='otype',
+            nargs='?',
+            choices=['raw','short','json', 'colored'],
+            required=False,
+            help=(
+                'Select your desired output put (default: raw) '
+                'colored=colored with OK/FAILED on result/line '
+                'raw=python dictionary pretty printed to stdout '
+                'short=bios,kernel,microcode,xen (if present) status '
+                'json=jsondump of python dict'
+            )
+        )
+
+        self.main_parser.add_argument(
+            '--intel-updates-directory',
+            type=str,
+            default='',
+            dest='intel_updates_dir',
+            nargs='+',
+            required=False,
+            help='The directory containing intel microcode updates (default: ./intel-ucode)'
         )
 
         self.main_parser.add_argument(
@@ -144,7 +188,7 @@ class ArgParser(object):
             dest='verbose',
             nargs='?',
             required=False,
-            help='Output progress info'
+            help='Show whats being done (default: False)'
         )
 
         self.main_parser.add_argument(
@@ -155,7 +199,7 @@ class ArgParser(object):
             dest='debug',
             nargs='?',
             required=False,
-            help='Output debug messages'
+            help='Output debug messages (default: False)'
         )
 
     def parseArgs(self):
@@ -188,47 +232,77 @@ class MyLogger(object):
         self.logger.debug(msg)
 
 #
-# HELPER FUNCTIONS FOR ANALYZING A SINGLE SYSTEM
+# Helper functions to analyze gathered data
 #
 
-def _check_bios_version(wversion, cversion, **kwargs):
+def _check_xen_version(xversion, **kwargs):
+    log_str = 'Checking xen version: '
+
+    if xversion in XEN_VERSIONS['Custom']:
+        log_str += 'xen version {0} found in Custom-versions, OK'.format(xversion)
+        log.info(log_str)
+        return True
+
+    for cversion in XEN_VERSIONS['Main']:
+        if version(xversion) >= version(cversion):
+            log_str += 'xen version {0} >= {1}, OK!'.format(xversion, cversion)
+            log.info(log_str)
+            return True
+
+    log_str += '{0} not found in Xen-Custom- and is {0} < Xen-Main-versions, FAILED!'.format(xversion)
+    log.info(log_str)
+    return False
+
+
+def _check_bios_version(wversion, **kwargs):
     log_str = 'Checking bios version: '
 
-    if wversion == cversion:
-        log_str += '{0} == {1}, OK!'.format(wversion, cversion)
+    #  create shortcut to platform data
+    cdata = BIOS_VERSIONS[kwargs['system_product_name']]
+
+    if version(wversion) > version(cdata['bios_version']):
+        log_str += '{0} >= {1}, OK!'.format(wversion, cdata['bios_version'])
         log.info(log_str)
         return True
     else:
-        log_str += '{0} != {1}, FAILED!'.format(wversion, cversion)
+        log_str += '{0} < {1}, FAILED!'.format(wversion, cdata['bios_version'])
         log.info(log_str)
         return False
 
 def _check_microcode_version(wversion, cpu_type, **kwargs):
-    log_str = 'Checking microcode version: '
+    log_str = 'Checking microcode update status: '
 
-    for rgx, safe_version in MC_VERSIONS.iteritems():
-        log.debug('re-matching \'{0}\' against \'{1}\''.format(
-                rgx,
-                cpu_type
+    if  len(kwargs['intel_updates_dir']) > 0:
+        if not os.path.isdir(kwargs['intel_updates_dir']):
+            log.error('Directory {0} not found, cant check microcodes updates, FAILED!'.format(
+                    kwargs['intel_updates_dir']
+                )
             )
+            return False
+
+        try:
+            mc_files = os.listdir(kwargs['intel_updates_dir'])
+        except (OSError, IOError):
+            log.error('Failed to list directory {0}, cant check microcodes updates, FAILED!'.format(
+                    kwargs['intel_updates_dir']
+                )
+            )
+
+        cpu_mc_name = '{:02x}-{:02x}-{:02x}'.format(
+            cpu_type['family'],
+            cpu_type['model'],
+            cpu_type['stepping']
         )
-        if re.match(rgx, cpu_type):
-            if wversion ==  safe_version:
-                log_str += '{0} is up2date for {1}, OK'.format(
-                    safe_version,
-                    cpu_type
-                )
+
+        for mcf in mc_files:
+            if re.match(cpu_mc_name, mcf):
+                log_str += 'Update found ({0})'.format(cpu_mc_name)
                 log.info(log_str)
-                return True
-            else:
-                log_str += '{0} != {1} for {2}, FAILED'.format(
-                    wversion,
-                    safe_version,
-                    cpu_type
-                )
-                log.error(log_str)
-                return False
-    log.error('Failed to match current cpu against known list, check regexes!')
+    else:
+        log_str += 'no directory defined, skipping check!'
+        log.info(log_str)
+
+    log.info('TODO: check if update was applied!')
     return False
 
 
@@ -255,19 +329,6 @@ def _check_kernel_version(wversion, distro):
         log_str += '{0} NOT found in {1}- or Custom-kernels, FAILED'.format(wversion, distro)
         log.info(log_str)
         return False
- 
-   
-
-def _analyze(wdata, **kwargs):
-    '''
-    Check the gathered versions against required versions
-    '''
-    #  create shortcut to platform data
-    cdata = BIOS_VERSIONS[wdata['system_product_name']]
-
-    print(_check_bios_version(wdata['bios_version'], cdata['bios_version']))
-    print(_check_kernel_version(wdata['kernel_version'], wdata['os_release']))
-    print(_check_microcode_version(wdata['microcode_version'], wdata['cpu_type']))
 
 #
 # Helper functions to parse/edit data that cant be used as is
@@ -284,11 +345,54 @@ def _get_processor_info(**kwargs):
     motherboard.
     '''
     log.info('Gathering processor information')
+
+    cpu_details = {
+        'plain': None,
+        'model': None,
+        'family': None,
+        'stepping': None,
+    } 
+
+    # Get processor type string
     retcode, stdout, stderr = _run_cmd(['/usr/sbin/dmidecode', '-s', 'processor-version'])
+   
     if retcode == 0:
-        return stdout.split('\n')[0]
+        cpu_details['plain'] = stdout.split('\n')[0]
     else:
-        return stderr
+        cpu_details['plain'] = stderr
+
+    # Get family and stepping. Why not use a python-module? Dependencies...
+    with open('/proc/cpuinfo', 'r') as cpuf:
+        for ndx, l in enumerate(cpuf.readlines()):
+            try:
+                cpu_details['family'] = int(re.match('cpu family\s+:\s+(.*)$', l).groups()[0])
+            except AttributeError as rgx_err:
+                log.debug(str(rgx_err))
+                pass
+
+            try:
+                cpu_details['stepping'] = int(re.match('stepping\s+:\s+(.*)$', l).groups()[0])
+            except AttributeError as rgx_err:
+                pass
+
+            try:
+                cpu_details['model'] = int(re.match('model\s+:\s+(.*)$', l).groups()[0])
+            except AttributeError as rgx_err:
+                pass
+        
+           # break on second processor if present 
+            if l.startswith('processor    :') and ndx > 0:
+                break
+
+    if not cpu_details['model']:
+        log.debug('Failed to extract model from current processor-info!')
+    if not cpu_details['family']:
+        log.debug('Failed to extract family from current processor-info!')
+    if not cpu_details['stepping']:
+        log.debug('Failed to extract stepping from current processor-info!')
+
+    return cpu_details
+ 
 
 def _get_kernel_version(**kwargs):
     '''
@@ -319,9 +423,9 @@ def _get_microcode_info(**kwargs):
     on Intels iucode-tool and amds <something>-tool.
     '''
     log.info('Gathering microcode version information')
-    proc = _get_processor_info()
+    cpu_details = _get_processor_info()
 
-    if re.match('^.*xeon.*$', proc, re.I):
+    if re.match('^.*xeon.*$', cpu_details['plain'], re.I):
         log.debug('Getting microcode version with intels iucode-tool...')
         retcode, stdout, stderr = _run_cmd(['/usr/sbin/iucode-tool', '-S'])
        
@@ -329,7 +433,7 @@ def _get_microcode_info(**kwargs):
         if retcode == 0 and len(stderr) > 0:
             return stderr.split()[-1]
 
-    elif re.match('^.*opteron.*$', proc, re.I):
+    elif re.match('^.*opteron.*$', cpu_details['plain'], re.I):
         log.debug('Getting microcode with amd tool...')
         return 'amd_version'
     else:
@@ -361,6 +465,7 @@ def _get_bios_info(**kwargs):
     # Dell has its version available in dmidecode
     if re.match('^poweredge.*$', sysprod, re.I):
         retcode, stdout, stderr = _run_cmd(['/usr/sbin/dmidecode', '-s', 'bios-version'])
+        return stdout
 
     # HP only has crap in dmidecode data, but ipmitool seems to work
     elif re.match('^proliant.*$', sysprod, re.I):
@@ -429,12 +534,53 @@ def _preflight():
     Some minor checks to save time and work
     '''
     sysprod = _get_system_product()
+
     if sysprod not in BIOS_VERSIONS:
         log.error('System type {0} is NOT yet supported'.format(sysprod))
         sys.exit(1)
     else:
         log.info('System type {0} is supported, continue'.format(sysprod))
-    
+
+def _print(data, **kwargs):
+    if kwargs['otype'] == 'raw':
+        pprint.pprint(data)
+
+    elif kwargs['otype'] == 'json':
+        print(simplejson.dumps(data))
+
+    elif kwargs['otype'] == 'short':
+        out = []
+        for k,v in sorted(data.items()):
+            out.append(str(v))
+        print(','.join(out))
+
+    elif kwargs['otype'] == 'colored':
+        colors = {
+          'COLS': '\033[95m',
+          'OKGREEN': '\033[92m',
+          'FAILRED': '\033[91m',
+          'ENDC': '\033[0m',
+        }
+
+        for k,v in data.items():
+            if v:
+                print('{0}{2}: {2}{3}'.format(
+                        k,
+                        colors['OKGREEN'],
+                        v,
+                        colors['ENDC']
+                    )
+                )
+            else:
+                print('{0}{1}: {2}{3}'.format(
+                        k,
+                        colors['FAILRED'],
+                        v,
+                        colors['ENDC']
+                   )
+                )
+
+
 
 #
 # END OF HELPER FUNCTIONS
@@ -450,11 +596,12 @@ if __name__ == '__main__':
     else:
         log = MyLogger()
 
+    log.debug('Parsed arguments: {0}'.format(args))
+
     _preflight()
 
-    # THE COMMANDS WE WANT TO RUN TO GATHER THE REQUIRED DATA.
-    # WE EITHER CALL COMMANDS DIRECTLY OR CALL A FUNCTIION THAT
-    # PARSES THE DATA BEFORE RETURNING IT.
+    # The commands we want to run to gather data. We either call commands directly.
+    # or call a function that parses/edits the data before returning it.
     CMD = {
         'hostname': ['/bin/hostname'],
         'bios_version': _get_bios_info,
@@ -465,7 +612,9 @@ if __name__ == '__main__':
         'kernel_version': _get_kernel_version,
         'system_product_name': _get_system_product
     }
-    ret = {}
+
+    sysdata = {}
+    sysreport = {}
 
     for name, cmd in CMD.iteritems():
 
@@ -478,16 +627,29 @@ if __name__ == '__main__':
                 if not retcode and not stdout and not stderr:
                     continue
 
+                # Command was successfully, add the return
                 if retcode == 0:
-                    ret.update({name: stdout})
+                    sysdata.update({name: stdout})
                 else:
-                    ret.update({name: stderr})
+                    sysdata.update({name: stderr})
 
+            # Execute the callable and use the returned data is
             elif callable(cmd):
-                ret.update({name: CMD[name](**args)})
- 
-        except (IOError, OSError) as xerr:
-            ret.update({name: str(xerr)})
+                sysdata.update({name: CMD[name](**args)})
 
-    log.info('Gathered data: {0}'.format(ret))
-    _analyze(ret)
+        # IF any command fails, add the returned error as result
+        except (IOError, OSError) as xerr:
+            sysdata.update({name: str(xerr)})
+
+    log.debug('Gathered data: {0}'.format(sysdata))
+
+    # Check the gathered versions against required versions
+    sysreport['bios_version'] = _check_bios_version(sysdata['bios_version'], **sysdata)
+    sysreport['kernel_version'] = _check_kernel_version(sysdata['kernel_version'], sysdata['os_release'])
+    sysreport['microcode_version'] =_check_microcode_version(sysdata['microcode_version'], sysdata['cpu_type'], **args)
+
+    if 'xen_version' in sysdata:
+       sysreport['xen_version'] =_check_xen_version(sysdata['xen_version'])
+    _print(sysreport, **args)
+
+
