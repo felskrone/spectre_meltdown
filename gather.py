@@ -60,7 +60,7 @@ INTEL_MCFILES = [
     '06-26-01', '06-2a-07', '06-2d-06', '06-2d-07', '06-2f-02', '06-3a-09',
     '06-3c-03', '06-3d-04', '06-3e-04', '06-3e-06', '06-3e-07', '06-3f-02',
     '06-3f-04', '0f-06-08', '06-56-02', '06-56-03', '06-9e-09', '06-9e-0a',
-    '06-45-01', '06-46-01', '06-47-01', '06-4e-03', '06-4f-01', '06-55-04', 
+    '06-45-01', '06-46-01', '06-47-01', '06-4e-03', '06-4f-01', '06-55-04',
     '06-56-04', '06-5c-09', '06-5e-03', '06-7a-01', '06-8e-09', '06-8e-0a',
     '06-9e-0b', '0f-00-07', '0f-00-0a', '0f-01-02', '0f-02-04', '0f-02-05',
     '0f-02-09', '0f-03-02', '0f-03-03', '0f-03-04', '0f-04-01', '0f-04-03',
@@ -81,7 +81,7 @@ INTEL_MCFILES = [
 MC_CPU_MAP = {
     '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(v6).*$': False,   # Xeon E5xxxx v6 @ x.xGHz
     '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(v5).*$': False,   # Xeon E5xxxx v5 @ x.xGHz
-    '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(v4).*$': '0xb000025',   # Xeon E5xxxx v4 @ x.xGHz 
+    '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(v4).*$': '0xb000025',   # Xeon E5xxxx v4 @ x.xGHz
     '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(v3).*$': '0x3b',        # Xeon E5xxxx v3 @ x.xxGHz
     '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(v2).*$': False,         # Xeon E5xxxx v2 @ x.xGHz
     '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(0).*$': False,          # Xeon E5xxxx 0 @ x.xGHz
@@ -383,7 +383,7 @@ def _check_microcode_version(wversion, cpu_type, **kwargs):
     log_str = 'Checking running microcode version: '
 
     for rgx, safe_version in MC_CPU_MAP.iteritems():
-  
+
         if re.match(rgx, cpu_type['plain'], re.I):
             if not safe_version:
                 log_str += 'No safe version information for \'{0}\' available!'.format(
@@ -448,7 +448,7 @@ def _check_kernel_version(wversion, distro):
                 return True
 
         log_str += '\'{0}\' < \'{1}\' and its not in {2}- or Custom-kernel list, FAILED'.format(
-           wversion, 
+           wversion,
            KERNEL_VERSIONS['Mainline'],
            distro
         )
@@ -566,7 +566,7 @@ def _get_kernel_version(**kwargs):
         except (IOError, OSError) as readerr:
             return 'Failed to get kernel version: {0}'.format(readerr)
     else:
-        return 'Failed to get kernel version: {0}'.format(readerr)
+        return 'Failed to get kernel version, dont know which method!'
 
     if retcode == 0:
         if kversion_src == 'uname-v':
