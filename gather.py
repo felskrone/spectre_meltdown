@@ -460,6 +460,14 @@ def _check_kernel_version(wversion, distro):
 # from stdout/stderr like 'dmidecode -s processer-version'
 # which returns more than one line/value.
 #
+
+def _readfile(path):
+    '''
+    Just reads  file and returns its contents
+    '''
+    with open(path, 'r') as ofile:
+        return ofile.read()
+
 def _get_os_release(**kwargs):
     return platform.dist()[0].title()
 
@@ -487,26 +495,30 @@ def _get_processor_info(**kwargs):
         cpu_details['plain'] = stderr
 
     # Get family and stepping. Why not use a python-module? Dependencies...
-    with open('/proc/cpuinfo', 'r') as cpuf:
-        for ndx, l in enumerate(cpuf.readlines()):
-            try:
-                cpu_details['family'] = int(re.match('cpu family\s+:\s+(.*)$', l).groups()[0])
-            except AttributeError as rgx_err:
-                pass
+    try:
+        cpuinfo = _readfile('/proc/cpuinfo')
+    except (IOError, OSError) as cpuerr:
+        return 'Failed to retrieve processor-info: {0}'.format(cpuerr)
 
-            try:
-                cpu_details['stepping'] = int(re.match('stepping\s+:\s+(.*)$', l).groups()[0])
-            except AttributeError as rgx_err:
-                pass
+    for ndx, l in enumerate(cpuinfo.split('\n')):
+        try:
+            cpu_details['family'] = int(re.match('cpu family\s+:\s+(.*)$', l).groups()[0])
+        except AttributeError as rgx_err:
+            pass
 
-            try:
-                cpu_details['model'] = int(re.match('model\s+:\s+(.*)$', l).groups()[0])
-            except AttributeError as rgx_err:
-                pass
+        try:
+            cpu_details['stepping'] = int(re.match('stepping\s+:\s+(.*)$', l).groups()[0])
+        except AttributeError as rgx_err:
+            pass
 
-           # break on second processor if present
-            if l.startswith('processor    :') and ndx > 0:
-                break
+        try:
+            cpu_details['model'] = int(re.match('model\s+:\s+(.*)$', l).groups()[0])
+        except AttributeError as rgx_err:
+            pass
+
+       # break on second processor if present
+        if l.startswith('processor    :') and ndx > 0:
+            break
 
     if not cpu_details['model']:
         log.debug('Failed to extract model from current processor-info!')
