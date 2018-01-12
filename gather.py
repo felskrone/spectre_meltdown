@@ -103,6 +103,7 @@ XEN_VERSIONS = {
 
 #
 # A mapping of system-product name to its safe bios version
+# False stands for a yet unknown version.
 #
 BIOS_VERSIONS = {
     # ALL DELL R2xx Models
@@ -190,6 +191,9 @@ BIOS_VERSIONS = {
     },
     'ProLiant DL360e Gen9': {
         'bios_version': '2.54',
+    },
+    'ProLiant DL380 G6': {
+        'bios_version': '2.54'
     },
     'ProLiant DL380 Gen9': {
         'bios_version': '2.54'
