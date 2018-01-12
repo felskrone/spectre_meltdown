@@ -239,13 +239,14 @@ class ArgParser(object):
         )
 
         self.main_parser.add_argument(
-            '--intel-updates-directory',
+            '--kernel-version-source',
             type=str,
-            default='',
-            dest='intel_updates_dir',
+            default=False,
+            dest='kversion_src',
+            choices=['uname-r', 'uname-v', 'proc_signature'],
             nargs='+',
             required=False,
-            help='The directory containing intel microcode updates (default: ./intel-ucode)'
+            help='Get kernel version with uname -r/-v, the latter is required for debian and ubuntu'
         )
 
         self.main_parser.add_argument(
@@ -502,25 +503,54 @@ def _get_processor_info(**kwargs):
 
 def _get_kernel_version(**kwargs):
     '''
-    Get the kernel version from platform.uname or uname -r directly.
+    Get the kernel version. The exact version has different sources:
+        Debian: 'uname -v', 'uname -r' is just the package version
+        Ubuntu: '/proc/version_signature', uname only tells package version
+        Redhat/CentOS: uname -r, package version corresponds with this
     '''
     log.info('Gathering kernel version information')
 
-    distro = _get_os_release()
+    # Get os-release and determine the way to retrieve kernel version
+    # if the user has not given us directions on how to do it
+    osr = _get_os_release()
 
-    if kwargs['use_uname_r']:
-        retcode, stdout, stderr = _run_cmd(['/bin/uname', '-r'])
-        if retcode == 0:
-            return stdout
+    if not kwargs['kversion_src']:
+        if re.match('^debian$', osr, re.I):
+            kversion_src = 'uname-v'
+        elif re.match('^ubuntu$', osr, re.I):
+            kversion_src = 'proc_signature'
+        elif re.match('^(redhat|centos)$', osr, re.I):
+            kversion_src = 'uname-r'
         else:
-            return stderr
-    elif re.match('^(debian|ubuntu)$', distro, re.I):
-        return platform.uname()[3].split()[3]
-
-    elif re.match('^(redhat|centos)$', distro, re.I):
-        return platform.uname()[2]
+            return 'Distro {0} is not supported'.format(osr)
     else:
-        return 'Unable to retrieve kernel version, unknown distro?'
+        kversion_src = kwargs['kversion_src'][0]
+
+    if kversion_src == 'uname-r':
+        retcode, stdout, stderr = _run_cmd(['/bin/uname' ,'-r'])
+    elif kversion_src == 'uname-v':
+        retcode, stdout, stderr = _run_cmd(['/bin/uname' ,'-v'])
+    elif kversion_src == 'proc_signature':
+        try:
+            ret = _readfile('/proc/version_signature').strip()
+            return ret.split()[2]
+        except (IOError, OSError) as readerr:
+            return 'Failed to get kernel version: {0}'.format(readerr)
+    else:
+        return 'Failed to get kernel version: {0}'.format(readerr)
+
+    if retcode == 0:
+        if kversion_src == 'uname-v':
+            kversion = stdout.split()[3]
+            kversion = '3.2.63-2+deb7u2'
+            if re.match('^(\d+)\.(\d+)\.(\d+)-.*$', kversion):
+                return kversion
+            else:
+                return 'Failed to parse \'uname -v\' output for kernel version'
+        else:
+            return stdout
+    else:
+        return stderr
 
 
 def _get_microcode_info(**kwargs):
