@@ -44,15 +44,48 @@ KERNEL_VERSIONS = {
 }
 
 #
-# This is a list of updates files released by intel on 20180108:
+# This is a list of update files released by intel on 2018-01-08:
 # https://downloadcenter.intel.com/download/27431/Linux-Processor-Microcode-Data-File?product=40711
 # According to the releases notes, the files are named in 'family-model-stepping'-pattern.
 # By mapping the current processor to this files, we can tell, whether or not an update is
-# available.
+# available. That does NOT tell us, if we are already running a safe version!
+INTEL_MCFILES = [
+    '06-03-02', '06-05-00', '06-05-01', '06-05-02', '06-05-03', '06-06-00',
+    '06-06-05', '06-06-0a', '06-06-0d', '06-07-01', '06-07-02', '06-07-03',
+    '06-08-01', '06-08-03', '06-08-06', '06-08-0a', '06-09-05', '06-0a-00',
+    '06-0a-01', '06-0b-01', '06-0b-04', '06-0d-06', '06-0e-08', '06-0e-0c',
+    '06-0f-02', '06-0f-06', '06-0f-07', '06-0f-0a', '06-0f-0b', '06-0f-0d',
+    '06-16-01', '06-17-06', '06-17-07', '06-17-0a', '06-1a-04', '06-1a-05',
+    '06-1c-02', '06-1c-0a', '06-1d-01', '06-1e-05', '06-25-02', '06-25-05',
+    '06-26-01', '06-2a-07', '06-2d-06', '06-2d-07', '06-2f-02', '06-3a-09',
+    '06-3c-03', '06-3d-04', '06-3e-04', '06-3e-06', '06-3e-07', '06-3f-02',
+    '06-3f-04', '0f-06-08', '06-56-02', '06-56-03', '06-9e-09', '06-9e-0a',
+    '06-45-01', '06-46-01', '06-47-01', '06-4e-03', '06-4f-01', '06-55-04', 
+    '06-56-04', '06-5c-09', '06-5e-03', '06-7a-01', '06-8e-09', '06-8e-0a',
+    '06-9e-0b', '0f-00-07', '0f-00-0a', '0f-01-02', '0f-02-04', '0f-02-05',
+    '0f-02-09', '0f-03-02', '0f-03-03', '0f-03-04', '0f-04-01', '0f-04-03',
+    '0f-04-08', '0f-04-09', '0f-04-0a', '0f-06-02', '0f-06-04', '0f-06-05',
+    '0f-02-06', '0f-02-07','0f-04-04', '0f-04-07'
+]
+
 #
-MC_VERSIONS = {
-    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+v4.*$': '0xb000025',
-    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+v3.*$': '0x3b',
+# A mapping of processor types to know good microcode version. For now it is assumed,
+# that each Xeon E-generation has the same microcode version. For example all Xeons v3
+# have '0x3b' and all Xeon v4 have '0xb000025'. If this turns out to be wrong, this will
+# be changed. The available versions are taken from wikipedia
+# https://en.wikipedia.org/wiki/Xeon#Sandy_Bridge%E2%80%93_and_Ivy_Bridge%E2%80%93based_Xeon
+#
+# False stands for a yet unknown version.
+
+#
+MC_CPU_MAP = {
+    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(v6).*$': False,   # Xeon E5 v6
+    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(v5).*$': False,   # Xeon E5 v5
+    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(v4).*$': '0xb000025',   # Xeon E5 v4
+    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(v3).*$': '0x3b',        # Xeon E5 v3
+    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(v2).*$': False,         # Xeon E5 v2
+    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(0).*$': False,          # Xeon E5 0
+    '^Intel\(R\) Xeon\(R\) CPU\s+X\d+\s+.*$': False,             # Xeon Xxxxx, versionless
 }
 
 #
@@ -309,41 +342,54 @@ def _check_bios_version(wversion, **kwargs):
         log.info(log_str)
         return False
 
+
 def _check_microcode_version(wversion, cpu_type, **kwargs):
     log_str = 'Checking microcode update status: '
 
-    if  len(kwargs['intel_updates_dir']) > 0:
-        if not os.path.isdir(str(kwargs['intel_updates_dir'])):
-            log.error('Directory {0} not found, cant check microcodes updates, FAILED!'.format(
-                    kwargs['intel_updates_dir']
-                )
-            )
-            return False
+    log.info(cpu_type)
+    cpu_mc_name = '{0:02x}-{1:02x}-{2:02x}'.format(
+        cpu_type['family'],
+        cpu_type['model'],
+        cpu_type['stepping']
+    )
 
-        try:
-            mc_files = os.listdir(kwargs['intel_updates_dir'])
-        except (OSError, IOError):
-            log.error('Failed to list directory {0}, cant check microcodes updates, FAILED!'.format(
-                    kwargs['intel_updates_dir']
-                )
-            )
-            return False
-
-        cpu_mc_name = '{:02x}-{:02x}-{:02x}'.format(
-            cpu_type['family'],
-            cpu_type['model'],
-            cpu_type['stepping']
-        )
-
-        for mcf in mc_files:
-            if re.match(cpu_mc_name, mcf):
-                log_str += 'Update found (filename: {0})'.format(cpu_mc_name)
-                log.info(log_str)
-    else:
-        log_str += 'no directory defined, skipping check!'
+    if cpu_mc_name in INTEL_MCFILES:
+        log_str += 'Update found (filename: {0})'.format(cpu_mc_name)
         log.info(log_str)
+    else:
+        log.info('No update file found, would be \'{0}\''.format(cpu_mc_name))
 
-    log.info('TODO: check if update was applied!')
+    try:
+        cur_xeon_version = re.match(
+            '^Intel.*\s(v[2-6]{1}|0)\s@.*$',
+            cpu_type['plain'],
+            re.I
+        ).groups()[0]
+    except (AttributeError, IndexError):
+        log.debug('Processor \'{0}\' has no version, correct?'.format(cpu_type['plain']))
+
+    for rgx, safe_version in MC_CPU_MAP.iteritems():
+  
+        if re.match(rgx, cpu_type['plain'], re.I):
+            if wversion == safe_version:
+                log.info('\'{0}\' == \'{1}\', Microcode for \'{2}\' is up2date, OK!'.format(
+                        wversion,
+                        safe_version,
+                        cpu_type['plain']
+                    )
+                )
+                return True
+
+            else:
+                log.info('\'{0}\' != \'{1}\', Microcode for \'{2}\' needs update, FAILED!'.format(
+                        wversion,
+                        safe_version,
+                        cpu_type['plain']
+                    )
+                )
+                return False
+
+    log.error('No processor matched, cant say if microcode is up2date!')
     return False
 
 
