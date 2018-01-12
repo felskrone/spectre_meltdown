@@ -182,13 +182,13 @@ class ArgParser(object):
         self.main_parser.add_argument(
             '--out',
             type=str,
-            default='raw',
+            default='colored',
             dest='otype',
             nargs='?',
             choices=['raw','short','json', 'colored'],
             required=False,
             help=(
-                'Select your desired output put (default: raw) '
+                'Select your desired output put (default: colored) '
                 'colored=colored with OK/FAILED on result/line '
                 'raw=python dictionary pretty printed to stdout '
                 'short=bios,kernel,microcode,xen (if present) status '
