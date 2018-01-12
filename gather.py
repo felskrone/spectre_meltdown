@@ -79,13 +79,14 @@ INTEL_MCFILES = [
 
 #
 MC_CPU_MAP = {
-    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(v6).*$': False,   # Xeon E5 v6
-    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(v5).*$': False,   # Xeon E5 v5
-    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(v4).*$': '0xb000025',   # Xeon E5 v4
-    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(v3).*$': '0x3b',        # Xeon E5 v3
-    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(v2).*$': False,         # Xeon E5 v2
-    '^Intel\(R\) Xeon\(R\) CPU E5-\d+\s+(0).*$': False,          # Xeon E5 0
-    '^Intel\(R\) Xeon\(R\) CPU\s+X\d+\s+.*$': False,             # Xeon Xxxxx, versionless
+    '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(v6).*$': False,   # Xeon E5xxxx v6 @ x.xGHz
+    '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(v5).*$': False,   # Xeon E5xxxx v5 @ x.xGHz
+    '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(v4).*$': '0xb000025',   # Xeon E5xxxx v4 @ x.xGHz 
+    '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(v3).*$': '0x3b',        # Xeon E5xxxx v3 @ x.xxGHz
+    '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(v2).*$': False,         # Xeon E5xxxx v2 @ x.xGHz
+    '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s+(0).*$': False,          # Xeon E5xxxx 0 @ x.xGHz
+    '^Intel\(R\) Xeon\(R\) CPU E5(-)?\d+\s@\s.*$': False,          # Xeon E5xxxx @ x.xGHz, versionless
+    '^Intel\(R\) Xeon\(R\) CPU\s+X\d+\s+.*$': False,             # Xeon Xxxxx @ x.xGHz, versionless
 }
 
 #
@@ -333,7 +334,7 @@ def _check_xen_version(xversion, **kwargs):
 def _check_bios_version(wversion, **kwargs):
     log_str = 'Checking bios version: '
 
-    #  create shortcut to platform data
+    # create shortcut to platform data
     cdata = BIOS_VERSIONS[kwargs['system_product_name']]
 
     if not cdata['bios_version']:
@@ -354,6 +355,9 @@ def _check_bios_version(wversion, **kwargs):
 def _check_microcode_version(wversion, cpu_type, **kwargs):
     log_str = 'Checking microcode update status: '
 
+    # Status wether an update for processor is generally available or not
+    upd_avail = None
+
     log.info(cpu_type)
     cpu_mc_name = '{0:02x}-{1:02x}-{2:02x}'.format(
         cpu_type['family'],
@@ -363,38 +367,43 @@ def _check_microcode_version(wversion, cpu_type, **kwargs):
 
     if cpu_mc_name in INTEL_MCFILES:
         log_str += 'Update found (filename: {0})'.format(cpu_mc_name)
-        log.info(log_str)
+        upd_avail = True
     else:
-        log.info('No update file found, would be \'{0}\''.format(cpu_mc_name))
+        log_str += 'No update file found, would be \'{0}\''.format(cpu_mc_name)
+        upd_avail = False
 
-    try:
-        cur_xeon_version = re.match(
-            '^Intel.*\s(v[2-6]{1}|0)\s@.*$',
-            cpu_type['plain'],
-            re.I
-        ).groups()[0]
-    except (AttributeError, IndexError):
-        log.debug('Processor \'{0}\' has no version, correct?'.format(cpu_type['plain']))
+    log.info(log_str)
+
+    # Check running version against known good version
+    log_str = 'Checking running microcode version: '
 
     for rgx, safe_version in MC_CPU_MAP.iteritems():
   
         if re.match(rgx, cpu_type['plain'], re.I):
-            if wversion == safe_version:
-                log.info('\'{0}\' == \'{1}\', Microcode for \'{2}\' is up2date, OK!'.format(
-                        wversion,
-                        safe_version,
-                        cpu_type['plain']
-                    )
+            if not safe_version:
+                log_str += 'No safe version information for \'{0}\' available!'.format(
+                    cpu_type['plain']
                 )
+                log.info(log_str)
+                return False
+
+
+            if wversion == safe_version:
+                log_str += '\'{0}\' == \'{1}\', Microcode for \'{2}\' is up2date, OK!'.format(
+                    wversion,
+                    safe_version,
+                    cpu_type['plain']
+                )
+                log.info(log_str)
                 return True
 
             else:
-                log.info('\'{0}\' != \'{1}\', Microcode for \'{2}\' needs update, FAILED!'.format(
-                        wversion,
-                        safe_version,
-                        cpu_type['plain']
-                    )
+                log_str += '\'{0}\' != \'{1}\', Microcode for \'{2}\' needs update, FAILED!'.format(
+                    wversion,
+                    safe_version,
+                    cpu_type['plain']
                 )
+                log.info(log_str)
                 return False
 
     log.error('No processor matched, cant say if microcode is up2date!')
