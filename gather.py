@@ -32,10 +32,15 @@ KERNEL_VERSIONS = {
         '3.10.0-693.11.6.x86_64',  # CentOS/RHEL7
         '2.6.32-696.18.7.el6',     # CentOS/RHEL6
     ],
+    'Ubuntu': [],
     'CentOS': [],
-    'Custom': [
-        '4.14'
-    ]
+    'Mainline': [
+        '4.14.11',    # Mainlinr
+        '4.15-rc6',   # Devel
+        '4.9.75',     # 4.9 LTS
+        '4.4.110'     # 4.4 LTS
+    ],
+    'Custom': []
 }
 
 #
@@ -351,6 +356,11 @@ def _check_kernel_version(wversion, distro):
     safe_kernels = KERNEL_VERSIONS[distro]
     cust_kernels  = KERNEL_VERSIONS['Custom']
 
+    # Steps:
+    # 1. Check excact versions in KERNEL_VERSIONS['distro']
+    # 2. Check excact versions in KERNEL_VERSIONS['Custom']
+    # 3. Compare version to known safe mainline and LTS versions
+    # 4. Fail if none of the above succeeded
     if wversion in safe_kernels:
         log_str += '\'{0}\' found in {0}-kernels, OK'.format(wversion, distro)
         log.info(log_str)
@@ -362,7 +372,18 @@ def _check_kernel_version(wversion, distro):
         return True
 
     else:
-        log_str += '\'{0}\' NOT found in {1}- or Custom-kernels, FAILED'.format(wversion, distro)
+
+        for ml_version in KERNEL_VERSIONS['Mainline']:
+            if version(wversion) >= version(ml_version):
+                log_str += '\'{0}\' >= \'{1}\' from Mainline/LTS, OK!'.format(wversion, ml_version)
+                log.info(log_str)
+                return True
+
+        log_str += '\'{0}\' < \'{1}\' and its not in {2}- or Custom-kernel list, FAILED'.format(
+           wversion, 
+           KERNEL_VERSIONS['Mainline'],
+           distro
+        )
         log.info(log_str)
         return False
 
