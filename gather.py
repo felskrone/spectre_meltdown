@@ -768,7 +768,7 @@ if __name__ == '__main__':
 
     # The commands we want to run to gather data. We either call commands directly.
     # or call a function that parses/edits the data before returning it.
-    CMD = {
+    cmds = {
         'hostname': ['/bin/hostname'],
         'bios_version': _get_bios_info,
         'os_release': _get_os_release,
@@ -782,7 +782,9 @@ if __name__ == '__main__':
     sysdata = {}
     sysreport = {}
 
-    for name, cmd in CMD.iteritems():
+    log.info('====== COLLECTING SYSTEM DATA ======')
+
+    for name, cmd in cmds.iteritems():
 
         try:
             if isinstance(cmd, list):
@@ -797,11 +799,11 @@ if __name__ == '__main__':
             # Execute the callable and use the returned data is
             elif callable(cmd):
 
-                call_data = CMD[name](**args)
+                call_data = cmds[name](**args)
 
                 # Results of callables returning a single 0
                 # are skipped completely from the results. For
-                # example is xen is not installed at all
+                # example if xen is not installed at all
                 if call_data == 0:
                     continue
                 else:
@@ -811,8 +813,10 @@ if __name__ == '__main__':
         except (IOError, OSError) as xerr:
             sysdata.update({name: str(xerr)})
 
+    log.info('====== FINISHED COLLECTING SYSTEM DATA ======')
     log.debug('Gathered data: {0}'.format(sysdata))
 
+    log.info('====== RUNNING VERSION CHECKS ======')
     # Check the gathered versions against required versions
     sysreport['bios_version'] = _check_bios_version(sysdata['bios_version'], **sysdata)
     sysreport['kernel_version'] = _check_kernel_version(sysdata['kernel_version'], sysdata['os_release'])
@@ -821,5 +825,4 @@ if __name__ == '__main__':
     if 'xen_version' in sysdata:
        sysreport['xen_version'] =_check_xen_version(sysdata['xen_version'])
     _print(sysreport, **args)
-
-
+    log.info('====== FINISHED ======')
