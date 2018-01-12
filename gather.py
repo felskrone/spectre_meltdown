@@ -33,7 +33,7 @@ KERNEL_VERSIONS = {
         '2.6.32-696.18.7.el6',     # CentOS/RHEL6
     ],
     'Ubuntu': [],
-    'CentOS': [],
+    'Centos': [],
     'Mainline': [
         '4.14.11',    # Mainlinr
         '4.15-rc6',   # Devel
