@@ -211,14 +211,12 @@ class ArgParser(object):
     def addArgs(self):
 
         self.main_parser.add_argument(
-            '--use-uname-r',
-            type=bool,
-            default=False,
-            dest='use_uname_r',
+            '--iucode-path',
+            type=str,
+            default='/usr/sbin/iucode-tool',
+            dest='iucodetool',
             nargs='?',
-            const=True,
-            required=False,
-            help='Use uname -r instead if pythons platform.uname() (default: False)'
+            help='Path to Intels iucode-tool to retrieve current microcode version'
         )
 
         self.main_parser.add_argument(
@@ -563,7 +561,7 @@ def _get_microcode_info(**kwargs):
 
     if re.match('^.*xeon.*$', cpu_details['plain'], re.I):
         log.debug('Getting microcode version with intels iucode-tool...')
-        retcode, stdout, stderr = _run_cmd(['/usr/sbin/iucode-tool', '-S'])
+        retcode, stdout, stderr = _run_cmd([kwargs['iucodetool'], '-S'])
 
         # The iucode-tool returns its data on stderr
         if retcode == 0 and len(stderr) > 0:
