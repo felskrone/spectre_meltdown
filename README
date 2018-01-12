@@ -2,13 +2,22 @@
 This script is work in progress. For now it only contains the logic(!) to check a system
 for various software versions and their vulnerability against spectre/meltdown. It is lacking
 lots of version information for various hardware platforms, microcode versions etc. simply because
-the version lists are huge and i only have access to a very limited number of distros and platforms
+the version lists are huge and i only have access to a very limited number of distros, platforms
 and processors.
 
 Right now especially versions of applied microcode updates are of interest to me since the list of
-processors having to be updated is huge. As of now i have no idea, wether an update to any v3 Xeon
+processors having to be updated is huge. As of now i have no idea, wether an update to any E5 v3 Xeon
 results in the same microcode version or if every Xeon-model (and there are 700+!) has its own
 version, so every version helps.
+
+FOR NOW it is assumed, that each Xeon family and version has the same microcode version. Meaning:
+
+All Xeons E5xxxx v2 have the same version.
+All Xeons E5xxxx v3 have the same version.
+All Xeons E5xxxx v4 have the same version.
+etc.
+
+The same applies to Xeon E3xxxx and Xeon X3,X4,X5 (the latter not being versioned at all).
 
 Please supply your version information if its not already in here. Either setup a PR or contact me
 on slack or jabber, mail me at volker.schwicking@godaddy.com or mention me on any confluence article
@@ -18,7 +27,7 @@ For bugs see FAQ->I found  bug.
 For improvements setup a PR or contact me.
 For feature requests setup a PR or contact me.
 
-# A script to check a server for meltdown/spectre vulnerability.
+# A script to check a server for up to date versions of bios, kernel, xen and microcode.
 
 Supported Distros
 ==================
@@ -42,32 +51,43 @@ Requirements:
 =============
 - Python2 (since it has to work on older distros that might not have 3)
 - dmidecode utility
-- ipmitool, only required on HP machines to retrieve bios version, dmidecode returns something else
-- intel-microcode (iucode-tool) if you run intel cpus, Debian has, RPM is available here https://bugzilla.redhat.com/show_bug.cgi?id=1533490
+- ipmitool, only required on HP machines to retrieve bios version, dmidecode returns some other version
+- intel-microcode (iucode-tool) if you run intel cpus, Debian has it in its repos, RPM is available here https://bugzilla.redhat.com/show_bug.cgi?id=1533490
 - amd64-microcode if you run amd cpus (this is not fully implemented yet)
-
-Optional:
-- a directory containing the latest microcode updates from intel, then use --intel-updates-dir and the skript will tell you if the
-processors microcode should be updated. 
 
 What does it do?
 ================
-The first step is to collect system version information for bios, kernel, microcode and xen (if installed).
-The way the data is collected, varies depending on the distro. See all the _get_*() functions on how thats done.
+It does NOT change anything, it just collects data and analyzes it. No update is executed, no files created.
+
+The first step is to collect system version information for bios, kernel, microcode and xen (if 
+installed). The way the data is collected, varies depending on the distro. See all the _get_*()
+functions on how thats done.
+
+Please note that on Debian/Ubuntu 'uname -r' return the linux-package name (or something like that),
+not the running kernel version! If you have a custom built kernel, that might differ and you can 
+instruct the script to use one of the other kernel version sources with --kernel-version-source parameter.
+
+Also note, that i have yet to find a way to get an AMDs processor current microcode version. Do you know how?
 
 Once the data is collected, it is checked against known good versions. Good versions are compiled in
 variables at the top.
 
-KERNEL_VERSIONS - by distro, custom versions supported in field 'Custom'
+KERNEL_VERSIONS - by distro, mainlines/LTS, custom versions supported in field 'Custom'
 XEN_VERSIONS    - known to be safe xen versions, custom versions supported in field 'Custom'
 BIOS_VERSIONS   - mapping from hardware platform to bios version, no custom versions supported
-MC_VERSIONS     - mapping from cpu to microcode version, no custom versions supported
+MC_CPU_MAP      - mapping from cpu to microcode version, no custom versions supported
+INTEL_MCFILES   - Contains a listing of the microcode files supplied by intel, see comment for more info
 
 See all the _check_*() functions on how versions are checked.
 
-What it does not do
-===================
-It does NOT change anything, it just collects data and analyzes it.
+The default result is a colored output for each check: bios, kernel, microcode and xen. If you
+require a different/parseable output, have a look t the --out parameter.
+
+False means the checked version it too old or could not be checked.
+True means the checked version is new enough and known to be safe.
+
+If you want to know what is being checked exactly, try with -v or -d. The latter telling you pretty much
+everything that is being run.
 
 How do i use it?
 ================
