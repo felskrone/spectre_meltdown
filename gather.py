@@ -18,7 +18,7 @@ log = None
 #
 # Kernel Versions that are known to be safe
 # Presumptions:
-# Kernel 4.14 is safe: http://www.kroah.com/log/blog/2018/01/06/meltdown-status/
+# Kernel 4.14.11 is safe: http://www.kroah.com/log/blog/2018/01/06/meltdown-status/
 #
 KERNEL_VERSIONS = {
     'Debian': [
