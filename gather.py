@@ -279,7 +279,8 @@ class MyLogger(object):
     '''
     def __init__(self, level=None):
         self.logger = logging.getLogger(__name__)
-        if level != None and level == logging.INFO or level == logging.DEBUG:
+
+        if level != None and level in [logging.INFO, logging.DEBUG]:
             self.logger.setLevel(level)
             ch_format = logging.Formatter('%(levelname)s - %(message)s')
             ch = logging.StreamHandler()
@@ -287,7 +288,11 @@ class MyLogger(object):
             ch.setLevel(level)
             self.logger.addHandler(ch)
         else:
-            self.logger.addHandler(logging.NullHandler())
+            try:
+                self.logger.addHandler(logging.NullHandler())
+            except AttributeError:
+                # Fixes Redhat NullHandler-Exception, we dont want output anyway
+                pass
 
     def info(self, msg):
         self.logger.info(msg)
