@@ -600,9 +600,9 @@ def _get_microcode_info(**kwargs):
 
     elif re.match('^.*opteron.*$', cpu_details['plain'], re.I):
         log.debug('Getting microcode with amd tool...')
-        return 'amd_version'
+        return None
     else:
-        return 'unknown'
+        return None
 
 def _get_system_product(**kwargs):
     '''
@@ -639,7 +639,8 @@ def _get_bios_info(**kwargs):
         for line in stdout.split('\n'):
             if re.match('^Firmware Revision\s+:.*$', line):
                 return line.split()[3]
-        return 'unknown'
+        log.debug('Could not retrieve bios version, returning False')
+        return None
     else:
         return 'system not supported'
 
