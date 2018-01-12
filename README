@@ -105,7 +105,8 @@ Todo
 
 FAQ
 ===
-I found a bug!
+I found a bug! What do i do?
+----------------------------
 Damn! Contact me or setup a PR :-) I always need the output of
 
 $ cat /proc/cpuinfo
@@ -120,20 +121,28 @@ $ ipmitool mc info
 $ iucode-tool -S (if its an intel cpu and that area of the script is causing problems)
 
 Why is my distro not supported?
+-------------------------------
 I mainly have access to Debian-systems and a limited number of CPUs. Thats the info i can supply. The rest
 has to be gathered by you to help others.
 
-How can i add supported for my hardware platform?
+How can i add supported for my hardware platforms bios version?
+---------------------------------------------------------------
 Update the BIOS_VERSIONS dictionary with your information. The dictionaries key-name is the string returned by 'dmidecode -s system-product-name'.
 
 How can i add supported for my processor and microcode version?
-Update the MC_VERSIONS dictionary with your information. The processor name is taken from '/proc/cpuinfo'.
+---------------------------------------------------------------
+Update the MC_CPU_MAP regex-dictionary with your information. All infos besides the microcode version are taken from '/proc/cpuinfo'. The
+microcode version can be retrieved with the iucode-tool from intel.
 
 How can i add supported for my distro?
-Update the KERNEL_VERSIONS dictionary with your distro and safe kernel-version information. The distro-name must match the name returned by _get_os_release().
+--------------------------------------
+Update the KERNEL_VERSIONS dictionary with your distro and safe kernel-version information. The distro-name must match the name returned 
+by _get_os_release() which internally uses pythons platform.dist()
 
 How can i add safe xen-version?
+-------------------------------
 Update XEN_VERSIONS with a known to be safe version string. _get_xen_version() uses the string from 'xl/xm info'.
 
-The script fails with 'some error...'!
+The script fails with 'some error...'. What do i do?
+----------------------------------------------------
 Please report to me directly or even better, fix it and setup a PR! :-)
