@@ -42,7 +42,8 @@ Requirements:
 =============
 - Python2 (since it has to work on older distros that might not have 3)
 - dmidecode utility
-- intel-microcode (iucode-tool) if you run intel cpus
+- ipmitool, only required on HP machines to retrieve bios version, dmidecode returns something else
+- intel-microcode (iucode-tool) if you run intel cpus, Debian has, RPM is available here https://bugzilla.redhat.com/show_bug.cgi?id=1533490
 - amd64-microcode if you run amd cpus (this is not fully implemented yet)
 
 Optional:
