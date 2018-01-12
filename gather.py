@@ -6,7 +6,6 @@ Gather system information regarding spectre and meltdown.
 import os
 import sys
 import subprocess
-import pprint
 import logging
 import re
 import platform
@@ -579,7 +578,7 @@ def _preflight():
 
 def _print(data, **kwargs):
     if kwargs['otype'] == 'raw':
-        pprint.pprint(data)
+        print(data)
 
     elif kwargs['otype'] == 'json':
         print(simplejson.dumps(data))
