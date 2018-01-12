@@ -43,7 +43,7 @@ Requirements:
 - Python2 (since it has to work on older distros that might not have 3)
 - dmidecode utility
 - intel-microcode (iucode-tool) if you run intel cpus
-- amd64-microcode if you run amd cpus (this is not fully implemented yet.
+- amd64-microcode if you run amd cpus (this is not fully implemented yet)
 
 Optional:
 - a directory containing the latest microcode updates from intel, then use --intel-updates-dir and the skript will tell you if the
