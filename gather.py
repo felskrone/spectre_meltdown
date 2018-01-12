@@ -342,6 +342,11 @@ def _check_bios_version(wversion, **kwargs):
        log.error(msg.format(kwargs['system_product_name']))
        return False
 
+    if not wversion:
+        log_str += 'Bios version from system \'{0}\' unusable, Failed!'.format(wversion)
+        log.info(log_str)
+        return False
+
     if version(wversion) > version(cdata['bios_version']):
         log_str += '\'{0}\' >= \'{1}\', OK!'.format(wversion, cdata['bios_version'])
         log.info(log_str)
